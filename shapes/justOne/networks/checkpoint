@@ -1,0 +1,2 @@
+model_checkpoint_path: "straightPipe1.cpt"
+all_model_checkpoint_paths: "straightPipe1.cpt"

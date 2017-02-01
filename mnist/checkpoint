@@ -1,0 +1,2 @@
+model_checkpoint_path: "smallModel.cpt"
+all_model_checkpoint_paths: "smallModel.cpt"
