@@ -17,6 +17,7 @@ def conv2d(x,W):
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 
+#Input pipeline in reader.py
 batch = reader.get_justOne_batch(300,"training")
 oh = tf.one_hot(batch[1], params.OUT_CLASSES, dtype=tf.int32)
 
