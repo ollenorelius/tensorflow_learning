@@ -4,7 +4,7 @@ import params
 import utils as u
 
 
-batch = reader.get_justOne_batch(300,"training")
+batch = reader.get_justOne_batch(100,"training")
 oh = tf.one_hot(batch[1], params.OUT_CLASSES, dtype=tf.int32)
 
 x_image = batch[0]
@@ -38,8 +38,9 @@ out = tf.nn.softmax(activations)
 #Regressor
 
 keep_prob = tf.placeholder(tf.float32)
-final_count = tf.cast((params.IMAGE_SIZE/4)**2*512,tf.int32)
-h_sq8_flat = tf.reshape(sq8,[-1, final_count])
+reg_sq = u.create_fire_module(sq8,8,2,2,512)
+final_count = tf.cast((params.IMAGE_SIZE/4)**2*4,tf.int32)
+h_sq8_flat = tf.reshape(reg_sq,[-1, final_count])
 
 W_reg1 = u.weight_variable([final_count, params.FC_NODES])
 b_reg1 = u.bias_variable([params.FC_NODES])
