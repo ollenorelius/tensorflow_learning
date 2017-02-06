@@ -12,83 +12,53 @@ y_ = oh
 coords_ = batch[2]
 
 #CONVOLUTIONAL LAYERS
+x_image = tf.reshape(x_image, [-1, 128,128,3])
+sq1 = u.create_fire_module(x_image,16,64,64,3)
+mp1 = u.max_pool_2x2(sq1) #down to 64x64
 
-sq1 = u.create_fire_module(x_image,(16,64,64))
-mp1 = u.max_pool_2x2(sq1)
+sq2 = u.create_fire_module(mp1, 16,64,64,128)
+sq3 = u.create_fire_module(sq2, 16,64,64,128)
+sq4 = u.create_fire_module(sq3, 32,128,128,128)
 
-sq2 = u.create_fire_module(sq1, (16,64,64))
-sq3 = u.create_fire_module(sq2, (16,64,64))
-sq4 = u.create_fire_module(sq3, (32,128,128))
+mp4 = u.max_pool_2x2(sq4) #down to 32x32
 
-mp4 = u.max_pool_2x2(sq4)
+sq5 = u.create_fire_module(mp4, 32,128,128,256)
+sq6 = u.create_fire_module(sq5, 48,192,192,256)
+sq7 = u.create_fire_module(sq6, 48,192,192,384)
+sq8 = u.create_fire_module(sq7, 64,256,256,384)
 
-sq5 = u.create_fire_module(sq4, (32,128,128))
-sq6 = u.create_fire_module(sq5, (48,192,192))
-sq7 = u.create_fire_module(sq6, (48,192,192))
-sq8 = u.create_fire_module(sq7, (64,256,256))
+mp8 = u.max_pool_2x2(sq8)#down to 16x16
 
-mp8 = u.max_pool_2x2(sq8)
+sq9 = u.create_fire_module(mp8, 64,256,256,512)
 
-sq9 = u.create_fire_module(mp8, (64,256,256))
+activations = u.get_activations(sq9, 16, 512)
 
-activations = u.get_activations(sq9)
-
-
-
-
-
-
-
-
-W_conv1 = weight_variable([ks,ks,3,kc])
-b_conv1 = bias_variable([kc])
-
-h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
-h_pool1 = max_pool_2x2(h_conv1)
-
-W_conv2 = weight_variable([ks,ks,kc,kc])
-b_conv2 = bias_variable([kc])
-
-h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-h_pool2 = max_pool_2x2(h_conv2)
-
-final_count = tf.cast((params.IMAGE_SIZE/4)**2*kc,tf.int32)
-h_pool2_flat = tf.reshape(h_pool2,[-1, final_count])
-
-#Fully connected classifier
-W_fc1 = weight_variable([final_count, params.FC_NODES])
-b_fc1 = bias_variable([params.FC_NODES])
-
-h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-keep_prob = tf.placeholder(tf.float32)
-h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-W_fc2 = weight_variable([params.FC_NODES, params.OUT_CLASSES])
-b_fc2 = bias_variable([params.OUT_CLASSES])
-
-y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
-out = tf.nn.softmax(y_conv)
+out = tf.nn.softmax(activations)
 
 #Regressor
 
-W_reg1 = weight_variable([final_count, params.FC_NODES])
-b_reg1 = bias_variable([params.FC_NODES])
+keep_prob = tf.placeholder(tf.float32)
+final_count = tf.cast((params.IMAGE_SIZE/4)**2*512,tf.int32)
+h_sq8_flat = tf.reshape(sq8,[-1, final_count])
 
-h_reg1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_reg1) + b_reg1)
+W_reg1 = u.weight_variable([final_count, params.FC_NODES])
+b_reg1 = u.bias_variable([params.FC_NODES])
+
+h_reg1 = tf.nn.relu(tf.matmul(h_sq8_flat, W_reg1) + b_reg1)
 h_reg1_drop = tf.nn.dropout(h_reg1, keep_prob)
 
-W_reg2 = weight_variable([params.FC_NODES, 2])
-b_reg2 = bias_variable([2])
+W_reg2 = u.weight_variable([params.FC_NODES, 2])
+b_reg2 = u.bias_variable([2])
 
 coord_predict = tf.sigmoid(tf.matmul(h_reg1_drop, W_reg2) + b_reg2)
 
 regression_loss = tf.nn.l2_loss(coords_ - coord_predict)
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(y_conv,y_))
+
+cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(activations,y_))
 loss = cross_entropy + regression_loss
 
 train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
-correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
+correct_prediction = tf.equal(tf.argmax(out,1), tf.argmax(y_,1))
 
 accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
 
@@ -105,7 +75,7 @@ sess.run(tf.global_variables_initializer())
 print("Variables initialized!")
 
 for i in range(200):
-    if i%5 == 0:
+    if i%1 == 0:
 
         train_accuracy = sess.run(accuracy, feed_dict = {keep_prob:1.0})
         pos_acc = sess.run(regression_loss, feed_dict = {keep_prob:1.0})
@@ -122,4 +92,4 @@ import os
 saver = tf.train.Saver()
 if not os.path.exists('./networks/'):
     os.makedirs('./networks/')
-saver.save(sess, './networks/straightPipe1.cpt')
+saver.save(sess, './networks/squeeze1.cpt')
