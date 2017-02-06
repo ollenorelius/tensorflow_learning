@@ -4,7 +4,7 @@ def read_labeled_image_list(image_list_file):
     """Reads a .txt file containing pathes and labeles
     Args:
        image_list_file: a .txt file with one /path/to/image per line
-       label: optionally, if set label will be pasted after each line
+       and labels following, space separated.
     Returns:
        List with all filenames in file image_list_file,
                                         list of labels,
@@ -36,6 +36,17 @@ def read_images_from_disk(filename):
     return image
 
 def get_justOne_batch(size,folder):
+
+    """
+        Starts the input pipe line, adds a slice_input_producer to the default graph.
+
+        In:
+            size: batch size as an integer.
+            folder: path containing images to sample.
+
+        Returns:
+            tf.Tensor objects containing images, labels, coords.
+    """
     image_list, label_list, coord_list = read_labeled_image_list("%s/list.txt"%folder)
 
     images = tf.convert_to_tensor(image_list, dtype=tf.string)

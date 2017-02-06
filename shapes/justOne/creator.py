@@ -8,6 +8,11 @@ import os
 
 
 def create_circle():
+    """
+        Create a blue circle of varying size in a black numpy array.
+
+        Out: size^2 x channels numpy array
+    """
     x = random.random()
     y = random.random()
     radius = random.random() * params.CIRCLE_VAR +  params.CIRCLE_RADIUS
@@ -26,6 +31,11 @@ def create_circle():
     return ((x,y), image)
 
 def create_rect():
+    """
+        Create a blue square in a black numpy array.
+
+        Out: size^2 x channels numpy array
+    """
     x = random.random()
     y = random.random()
     radius = random.random() *  params.SQUARE_VAR +  params.SQUARE_SIZE
@@ -44,6 +54,21 @@ def create_rect():
     return ((x,y), image)
 
 def create_justOne_batch(count):
+
+    """
+        Creates a stack of images together with their classes and coordinates.
+
+        Coordinates are relative (eg [0, 1]) and start in top left corner.
+
+        In: size of the batch (number of pictures)
+
+        Out: tuple of:
+            images: (count x imagesize x imagesize x channels) numpy array
+            classes: (count x classes) one-hot array of labels
+            coords: list of tuples: (x,y) x count
+
+
+    """
     out = np.zeros([count, params.IMAGE_SIZE, params.IMAGE_SIZE, 4])
     classes = np.zeros([count,3])
     coords = np.zeros([count,2])
@@ -66,6 +91,13 @@ def create_justOne_batch(count):
 
 
 def save_justOne_batch_to_disk(folder, size):
+    """
+        Creates a batch of <size> images and saves it to disk in <folder>.
+        Images are numbered from 0.jpg to <size>.jpg
+        Additionally saves labeling in file called list.txt in the same folder.
+
+        label file is formatted as <file name> <class> <x> <y>
+    """
     data = create_justOne_batch(size)
 
     if not os.path.exists(folder):

@@ -2,6 +2,10 @@ import tensorflow as tf
 import reader
 import params
 
+
+"""
+Runs a couple of forward passes of the network trained by main.py and times them.
+"""
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.Variable(initial)

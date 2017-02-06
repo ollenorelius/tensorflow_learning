@@ -1,7 +1,12 @@
 import tensorflow as tf
 import reader
 import params
+"""
+Creates and trains a cnn to find shapes in simple preconstructed images.
+The network can then be run using forward_pass.py. The program assumes there is
+data in ./test and ./training, if there is not, run createTrainingData.py to create it.
 
+"""
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.Variable(initial)
@@ -17,7 +22,6 @@ def conv2d(x,W):
 def max_pool_2x2(x):
     return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 
-#Input pipeline in reader.py
 batch = reader.get_justOne_batch(300,"training")
 oh = tf.one_hot(batch[1], params.OUT_CLASSES, dtype=tf.int32)
 
@@ -93,7 +97,7 @@ sess.run(tf.global_variables_initializer())
 
 print("Variables initialized!")
 
-for i in range(200):
+for i in range(2000):
     if i%5 == 0:
 
         train_accuracy = sess.run(accuracy, feed_dict = {keep_prob:1.0})
