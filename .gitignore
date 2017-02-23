@@ -12,3 +12,5 @@ shapes/justOne_squeeze/training/
 **/cifar-10-batches-py
 
 **/__pycache__
+
+squeezeDet/data/
