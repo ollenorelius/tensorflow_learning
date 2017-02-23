@@ -6,3 +6,9 @@ shapes/justOne/training/
 shapes/justOne_squeeze/test/
 
 shapes/justOne_squeeze/training/
+
+**/networks
+
+**/cifar-10-batches-py
+
+**/__pycache__
