@@ -33,8 +33,8 @@ mp5 = u.max_pool_2x2(mp4) # 8x8
 
 
 sq9 = u.create_fire_module(mp4, 64,256,256,512)#(mp8, 64,256,256,512)
-    
-activations = u.get_activations(sq9, 8, 256)
+
+activations = u.get_activations(sq9, 8, 512)
 
 out = tf.nn.softmax(activations)
 

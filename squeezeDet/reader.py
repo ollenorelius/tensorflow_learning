@@ -56,6 +56,8 @@ def read_labeled_image_list(image_list_file):
         anchors = np.array(u.create_anchors(p.GRID_SIZE)) # KXY x 4
         it_coords = u.inv_trans_boxes(coords[i]) # x,y,w,h
 
+        classes = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT, p.OUT_CLASSES])
+
         ious = []
 
         for box in coords[i]:
@@ -76,7 +78,7 @@ def read_labeled_image_list(image_list_file):
         y_hat = anchors[:,1]
         w_hat = anchors[:,2]
         h_hat = anchors[:,3]
-        print(wg)
+        #print(wg)
         deltas[:,0] = (xg-x_hat)/w_hat
         deltas[:,1] = (yg-y_hat)/h_hat
         deltas[:,2] = np.log(wg/w_hat)
@@ -85,18 +87,21 @@ def read_labeled_image_list(image_list_file):
         iou_mask_per_grid_point = np.reshape(iou_mask, [p.GRID_SIZE**2, p.ANCHOR_COUNT])
         input_mask_indices = np.argmax(iou_mask_per_grid_point, 0)
         input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
-        for i in range(p.GRID_SIZE**2):
+        for j in range(p.GRID_SIZE**2):
             input_mask[i,input_mask_indices[i]] = 1
 
-        ret_deltas.append(np.reshape(deltas,[p.GRID_SIZE,p.GRID_SIZE,p.ANCHOR_COUNT,4]))
-        ret_gammas.append(np.reshape(iou_mask, [p.GRID_SIZE,p.GRID_SIZE,p.ANCHOR_COUNT]))
-        ret_masks.append(np.reshape(input_mask, [p.GRID_SIZE,p.GRID_SIZE,p.ANCHOR_COUNT]))
+        for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT)
+            classes[i,classes[box_mask[i]]] = 1
+
+        ret_deltas.append(deltas)
+        ret_gammas.append(iou_mask)
+        ret_masks.append(input_mask)
 
 
 
 
 
-    return filenames, labels, coords, ret_deltas, ret_gammas, ret_masks
+    return filenames, labels, coords, ret_deltas, ret_gammas, ret_masks, classes
 
 def read_images_from_disk(filename):
     """Consumes a single filename.
@@ -114,13 +119,13 @@ def read_images_from_disk(filename):
 def get_batch(size,folder):
     image_list, label_list, coord_list, delta_list, gamma_list, mask_list \
                     = read_labeled_image_list("%s/list.txt"%folder)
-    print(np.shape(delta_list))
+    print(np.shape(gamma_list))
     images = tf.convert_to_tensor(image_list, dtype=tf.string)
     labels = tf.convert_to_tensor(label_list, dtype=tf.int32)
     coords = tf.convert_to_tensor(coord_list, dtype=tf.float32)
-    deltas = tf.convert_to_tensor(delta_list, dtype=tf.float32)
-    gammas = tf.convert_to_tensor(gamma_list, dtype=tf.float32)
-    masks = tf.convert_to_tensor(mask_list, dtype=tf.int32)
+    deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32)
+    gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32)
+    masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32)
     tf.reshape(labels,[-1])
 
     tensor_slice = tf.train.slice_input_producer(

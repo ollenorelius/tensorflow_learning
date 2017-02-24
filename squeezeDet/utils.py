@@ -71,9 +71,9 @@ def get_activations(input_tensor, in_size, in_channels):
         Out:
             tf.Tensor of class scores. (batch x classes)
     """
-    out_count = p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF
-    w = weight_variable([3, 3, in_channels, p.OUT_CLASSES])
-    b = bias_variable([p.OUT_CLASSES])
+    out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
+    w = weight_variable([3, 3, in_channels, out_count])
+    b = bias_variable([out_count])
     tens = tf.nn.relu(conv2d(input_tensor, w) + b)
 
     return tens
@@ -178,6 +178,48 @@ def inv_trans_boxes(coords):
             "invalid shape in inv_trans_boxes: %i,%i" % np.shape(t_coords)
 
     return t_coords
+
+def loss_function(act_tensor, deltas, gammas, masks, classes):
+    stride = p.ANCHOR_COUNT*(1+4+p.OUT_CLASSES)
+    pred_delta = tf.strided_slice(act_tensor,
+                            [0,0,p.OUT_CLASSES],
+                            [p.GRID_SIZE, p.GRID_SIZE, p.OUT_CLASSES+4],
+                            [0,0,stride])
+    pred_delta = tf.reshape(pred_delta,
+                            [p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
+
+    pred_gamma = tf.strided_slice(act_tensor,
+                            [0,0,p.OUT_CLASSES+4],
+                            [p.GRID_SIZE, p.GRID_SIZE, p.OUT_CLASSES+4+1],
+                            [0,0,stride])
+    pred_gamma = tf.reshape(pred_gamma,
+                            [p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,1])
+
+    pred_class = tf.strided_slice(act_tensor,
+                            [0,0,0],
+                            [p.GRID_SIZE, p.GRID_SIZE, p.OUT_CLASSES],
+                            [0,0,stride])
+    pred_class = tf.reshape(pred_class,
+                            [p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
+
+    diff_delta = tf.norm(deltas - pred_delta, axis=1)
+    filtered_diff_delta = tf.multiply(diff_delta,masks)
+
+    delta_loss = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
+
+    diff_gamma = tf.norm(gammas - pred_gamma, axis=1)
+    filtered_diff_gamma = tf.pow(tf.multiply(diff_gamma, masks))
+
+    ibar = 1-masks
+
+    conj_gamma = tf.multiply(ibar, tf.pow(pred_gamma,2))\
+            /(p.GRID_SIZE**2*p.ANCHOR_COUNT) #TODO: subtract boxcount in denominator
+
+    gamma_loss = p.LAMBDA_CONF_P * filtered_diff_gamma \
+                    + p.LAMBDA_CONF_N* conj_gamma
+
+    class_loss = tf.cross_entropy(classes, pred_class)
+
 
 
 
