@@ -76,21 +76,27 @@ def get_activations(input_tensor, in_size, in_channels):
     b = bias_variable([p.OUT_CLASSES])
     tens = tf.nn.relu(conv2d(input_tensor, w) + b)
 
-
     return tens
 
 def create_anchors(grid_size):
+    """
+        Creates a list of all anchor coordinates.
+        Input: Grid size to distribute anchors over.
+
+        Returns: (K*X*Y) x 4 tensor containing coordinates in (x,y,w,h)-form
+            in a, x, y order:
+    """
     x = np.linspace(0,1,grid_size)
     xv, yv = np.meshgrid(x,x)
     anchors = []
-    for ix in range(len(xv)):
-        for iy in range(len(yv)):
+    for iy in range(len(xv)):
+        for ix in range(len(yv)):
             for i in range(p.ANCHOR_COUNT):
                 anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0], p.ANCHOR_SIZES[i][1]))
-    return anchors
+    assert (len(anchors), len(anchors[1])) == (p.ANCHOR_COUNT * p.GRID_SIZE**2, 4), \
+     "ERROR: create_anchors made a matrix of shape %i,%i" % (len(anchors), len(anchors[1]))
 
-def assign_bbox(coords):
-    out = tf.constant(tf.float32)
+    return anchors
 
 def intersection(bbox, anchors):
     """
@@ -102,25 +108,27 @@ def intersection(bbox, anchors):
     returns: a 1x(X*Y*K) tensor containing all anchor intersections.
 
     """
-    p1 = tf.minimum(bbox[2], anchors[2]) - tf.maximum(bbox[0], anchors[0])
-    p2 = tf.minimum(bbox[3], anchors[3]) - tf.maximum(bbox[1], anchors[1])
 
-    p1_r = tf.maximum(p1,0) #If this is negative, there is no intersection
-    p2_r = tf.maximum(p2,0) # so it is rectified
 
-    return tf.multiply(p1_r,p2_r)
+    p1 = np.minimum(bbox[2], anchors[2]) - np.maximum(bbox[0], anchors[0])
+    p2 = np.minimum(bbox[3], anchors[3]) - np.maximum(bbox[1], anchors[1])
+
+    p1_r = np.maximum(p1,0) #If this is negative, there is no intersection
+    p2_r = np.maximum(p2,0) # so it is rectified
+
+    return np.multiply(p1_r,p2_r)
 
 def union(bbox, anchors, intersections):
     """
     Computes union of a SINGLE bounding box and all anchors.
 
-    bbox: coordinate tensor: 4x1 (x1, y1, x2, y2)
-    anchors: coordinate tensor: 4x(X*Y*K) with XY being number of grid points
-    intersections: tensor containing all intersections computed using
+    bbox: coordinate array: 4x1 (x1, y1, x2, y2)
+    anchors: coordinate array: 4x(X*Y*K) with XY being number of grid points
+    intersections: array containing all intersections computed using
         intersection(). used to avoid double calculation.
 
 
-    returns: a 1x(X*Y*K) tensor containing all anchor unions.
+    returns: a 1x(X*Y*K) array containing all anchor unions.
 
     """
 
@@ -129,20 +137,49 @@ def union(bbox, anchors, intersections):
 
     return box_area + anchor_areas - intersections
 
-def intersection_over_union(bbox, anchors)
+def intersection_over_union(bbox, anchors):
     intersections = intersection(bbox, anchors)
     unions = union(bbox, anchors, intersections)
     return tf.divide(intersections, unions)
 
-def trans_centers_to_sides(coords):
+def trans_boxes(coords):
+    """
+        Transforms coordinates from x, y, w, h to x1, y1, x2, y2.
+
+        Input: a Nx4 matrix of coordinates for N boxes.
+
+        Returns: a Nx4 matrix of transformed coordinates.
+    """
     coords = np.transpose(coords)
     t_coords = []
     t_coords.append(coords[0] - coords[2]/2)
     t_coords.append(coords[0] + coords[2]/2)
     t_coords.append(coords[1] - coords[3]/2)
     t_coords.append(coords[1] + coords[3]/2)
+    t_coords = np.transpose(t_coords)
+    return t_coords
+
+def inv_trans_boxes(coords):
+    """
+        Transforms coordinates from x1, y1, x2, y2 to x, y, w, h
+
+        Input: a Nx4 matrix of coordinates for N boxes.
+
+        Returns: a Nx4 matrix of transformed coordinates.
+    """
+    coords = np.transpose(coords)
+    t_coords = []
+    t_coords.append((coords[0] + coords[2])/2)
+    t_coords.append((coords[1] + coords[3])/2)
+    t_coords.append(coords[2] - coords[0])
+    t_coords.append(coords[3] - coords[1])
+    t_coords = np.transpose(t_coords)
+    assert np.shape(t_coords)[1] == 4, \
+            "invalid shape in inv_trans_boxes: %i,%i" % np.shape(t_coords)
 
     return t_coords
+
+
 
 def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)

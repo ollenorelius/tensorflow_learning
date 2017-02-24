@@ -11,6 +11,7 @@ OUT_CLASSES = 10
 OUT_COORDS = 4
 OUT_CONF = 1
 
+GRID_SIZE = 2
 ANCHOR_COUNT = 9
 ANCHOR_SIZES = [[0.8, 0.8], [0.4, 0.8], [0.8, 0.4],
                 [0.4, 0.4], [0.2, 0.4], [0.4, 0.2],
