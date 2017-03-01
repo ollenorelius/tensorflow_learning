@@ -41,6 +41,7 @@ def read_labeled_image_list(image_list_file):
         ret_deltas = []
         ret_gammas = []
         ret_masks  = []
+        ret_classes =[]
 
     for i in range(len(filenames)):
         #which box is each anchor assigned to?
@@ -63,7 +64,6 @@ def read_labeled_image_list(image_list_file):
         for box in coords[i]:
             ious.append(u.intersection_over_union(np.transpose(box), np.transpose(anchors)))
 
-
         box_mask = np.argmax(ious, 0)
         iou_mask = np.amax(ious, 0)
 
@@ -84,26 +84,32 @@ def read_labeled_image_list(image_list_file):
         deltas[:,2] = np.log(wg/w_hat)
         deltas[:,3] = np.log(hg/h_hat)
 
+        #Reshaping the IOUs to be a matrix of [grid points x anchors]
         iou_mask_per_grid_point = np.reshape(iou_mask, [p.GRID_SIZE**2, p.ANCHOR_COUNT])
-        input_mask_indices = np.argmax(iou_mask_per_grid_point, 0)
+        #Which anchor has the highest IOU at every grid point?
+        input_mask_indices = np.argmax(iou_mask_per_grid_point, 1)
+
         input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
         for j in range(p.GRID_SIZE**2):
-            input_mask[i,input_mask_indices[i]] = 1
-
-        for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT)
-            classes[i,classes[box_mask[i]]] = 1
+            input_mask[j,input_mask_indices[j]] = 1
+        #print(box_mask)
+        for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
+            classes[j,labels[box_mask[j]]] = 1
 
         ret_deltas.append(deltas)
         ret_gammas.append(iou_mask)
         ret_masks.append(input_mask)
+        ret_classes.append(classes)
 
 
 
 
 
-    return filenames, labels, coords, ret_deltas, ret_gammas, ret_masks, classes
 
-def read_images_from_disk(filename):
+    return filenames, labels, coords, ret_deltas,\
+           ret_gammas, ret_masks, ret_classes
+
+def read_images_from_disk(filename,folder):
     """Consumes a single filename.
     Args:
       filename: A scalar string tensor.
@@ -111,35 +117,40 @@ def read_images_from_disk(filename):
       One tensor: the decoded image.
     """
 
-    file_contents = tf.read_file(filename)
+    file_contents = tf.read_file(folder+'/'+filename)
     image = tf.image.decode_jpeg(file_contents, channels=3)
     image = tf.image.resize_images(image, [256,256])
     return image
 
 def get_batch(size,folder):
-    image_list, label_list, coord_list, delta_list, gamma_list, mask_list \
+    image_list, label_list, coord_list, delta_list, gamma_list, mask_list, class_list \
                     = read_labeled_image_list("%s/list.txt"%folder)
-    print(np.shape(gamma_list))
+
     images = tf.convert_to_tensor(image_list, dtype=tf.string)
     labels = tf.convert_to_tensor(label_list, dtype=tf.int32)
     coords = tf.convert_to_tensor(coord_list, dtype=tf.float32)
     deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32)
     gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32)
     masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32)
+    classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32)
     tf.reshape(labels,[-1])
 
     tensor_slice = tf.train.slice_input_producer(
-        [images, labels, coords, deltas, gammas, masks], shuffle=False)
+        [images, labels, coords, deltas, gammas, masks, classes], shuffle=False)
 
-    image = read_images_from_disk(tensor_slice[0])
+    image = read_images_from_disk(tensor_slice[0],folder)
 
 
-    image_batch, label_batch, coord_batch, delta_batch, gamma_batch, mask_batch\
+    image_batch, label_batch, coord_batch, \
+    delta_batch, gamma_batch, mask_batch, class_batch\
                     = tf.train.batch([image,
                                     tensor_slice[1],
                                     tensor_slice[2],
                                     tensor_slice[3],
                                     tensor_slice[4],
-                                    tensor_slice[5]],
+                                    tensor_slice[5],
+                                    tensor_slice[6]],
                                     batch_size=size)
-    return image_batch, label_batch, coord_batch, delta_batch, gamma_batch, mask_batch
+
+    return image_batch, label_batch, coord_batch, \
+    delta_batch, gamma_batch, mask_batch, class_batch

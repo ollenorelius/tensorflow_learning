@@ -2,7 +2,7 @@ import tensorflow as tf
 import params as p
 import numpy as np
 
-def create_fire_module(input_tensor,s1,e1,e3, in_channels):
+def create_fire_module(input_tensor,s1,e1,e3):
     """
         Adds a Fire module to the graph.
 
@@ -16,12 +16,12 @@ def create_fire_module(input_tensor,s1,e1,e3, in_channels):
             tens: Activation volume (tf.Tensor)
     """
 
-    tens = squeeze(input_tensor,s1,in_channels)
-    tens = expand(tens,e1,e3,s1)
+    tens = squeeze(input_tensor,s1)
+    tens = expand(tens,e1,e3)
     return tens
 
 
-def squeeze(input_tensor, s1, in_channels):
+def squeeze(input_tensor, s1):
     """
         Creates a squeeze operation on input_tensor.
         In:
@@ -32,12 +32,13 @@ def squeeze(input_tensor, s1, in_channels):
             Activation volume. (tf.Tensor)
     """
 
-    w = weight_variable([1,1,in_channels,s1])
+    inc = input_tensor.get_shape()[3]
+    w = weight_variable([1,1,int(inc),s1])
     b = bias_variable([s1])
     return tf.nn.relu(conv2d(input_tensor, w) + b)
 
 
-def expand(input_tensor, e1, e3, in_channels):
+def expand(input_tensor, e1, e3):
     """
         Creates a expand operation on input_tensor.
         In:
@@ -48,22 +49,22 @@ def expand(input_tensor, e1, e3, in_channels):
         Out:
             Activation volume. (tf.Tensor)
     """
-
-    w3 = weight_variable([3,3,in_channels,e3])
+    inc = int(input_tensor.get_shape()[3])
+    w3 = weight_variable([3,3,inc,e3])
     b3 = bias_variable([e3])
     c3 = tf.nn.relu(conv2d(input_tensor, w3) + b3)
 
-    w1 = weight_variable([1,1,in_channels,e1])
+    w1 = weight_variable([1,1,inc,e1])
     b1 = bias_variable([e1])
     c1 = tf.nn.relu(conv2d(input_tensor, w1) + b1)
 
-    return tf.concat(3,[c1,c3])
+    return tf.concat([c1,c3],3)
 
 
-def get_activations(input_tensor, in_size, in_channels):
+def get_activations(input_tensor):
     """
-        Gets activations by 1x1 convolution and avg pooling as described in the
-        SqueezeNet paper.
+        Gets activations by 3x3 convolution as described in the
+        SqueezeDet paper.
 
         In:
             Activation volume from previous convolutional layers. (tf.Tensor)
@@ -71,8 +72,9 @@ def get_activations(input_tensor, in_size, in_channels):
         Out:
             tf.Tensor of class scores. (batch x classes)
     """
+    inc = int(input_tensor.get_shape()[3])
     out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
-    w = weight_variable([3, 3, in_channels, out_count])
+    w = weight_variable([3, 3, inc, out_count])
     b = bias_variable([out_count])
     tens = tf.nn.relu(conv2d(input_tensor, w) + b)
 
@@ -179,47 +181,66 @@ def inv_trans_boxes(coords):
 
     return t_coords
 
+def get_stepped_slice(in_tensor, start, length):
+    in_shape = in_tensor.get_shape().as_list()
+    in_depth = in_shape[3]
+    stride = (1+4+p.OUT_CLASSES) # gammas + deltas + classes,
+                                 # the number of things for each anchor
+                                 # so we can stride through each anchor
+    tensor_slice = tf.slice(in_tensor, [0,0,0,start],[-1,-1,-1,length])
+    for iStride in range(in_depth//stride-1):
+        pos = stride*(iStride+1)
+        tensor_slice = tf.concat([tensor_slice,
+                                 tf.slice(in_tensor,
+                                        [0,0,0,start+pos],
+                                        [-1,-1,-1,length])],3)
+    return tensor_slice
+
 def loss_function(act_tensor, deltas, gammas, masks, classes):
-    stride = p.ANCHOR_COUNT*(1+4+p.OUT_CLASSES)
-    pred_delta = tf.strided_slice(act_tensor,
-                            [0,0,p.OUT_CLASSES],
-                            [p.GRID_SIZE, p.GRID_SIZE, p.OUT_CLASSES+4],
-                            [0,0,stride])
+    stride = (1+4+p.OUT_CLASSES)
+    print(masks.get_shape().as_list())
+    in_shape = act_tensor.get_shape().as_list()
+    batch_size = in_shape[0]
+    in_depth = in_shape[3]
+    masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
+
+
+    pred_delta = get_stepped_slice(act_tensor, p.OUT_CLASSES, 4)
+    print(pred_delta.get_shape().as_list())
     pred_delta = tf.reshape(pred_delta,
-                            [p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
+                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
 
-    pred_gamma = tf.strided_slice(act_tensor,
-                            [0,0,p.OUT_CLASSES+4],
-                            [p.GRID_SIZE, p.GRID_SIZE, p.OUT_CLASSES+4+1],
-                            [0,0,stride])
+
+
+    pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
     pred_gamma = tf.reshape(pred_gamma,
-                            [p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,1])
+                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT])
 
-    pred_class = tf.strided_slice(act_tensor,
-                            [0,0,0],
-                            [p.GRID_SIZE, p.GRID_SIZE, p.OUT_CLASSES],
-                            [0,0,stride])
+    pred_class = get_stepped_slice(act_tensor, 0, p.OUT_CLASSES)
     pred_class = tf.reshape(pred_class,
-                            [p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
+                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
-    diff_delta = tf.norm(deltas - pred_delta, axis=1)
-    filtered_diff_delta = tf.multiply(diff_delta,masks)
+    print(classes.get_shape().as_list())
+    diff_delta = tf.norm(deltas - pred_delta, axis=2)
+    filtered_diff_delta = tf.multiply(diff_delta,tf.to_float(masks_unwrap))
 
     delta_loss = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
 
-    diff_gamma = tf.norm(gammas - pred_gamma, axis=1)
-    filtered_diff_gamma = tf.pow(tf.multiply(diff_gamma, masks))
+    diff_gamma = gammas - pred_gamma
+    filtered_diff_gamma = tf.pow(tf.multiply(diff_gamma,tf.to_float(masks_unwrap)),2)
 
-    ibar = 1-masks
+    ibar = 1-masks_unwrap
 
-    conj_gamma = tf.multiply(ibar, tf.pow(pred_gamma,2))\
+    conj_gamma = tf.multiply(tf.to_float(ibar), tf.pow(pred_gamma,2))\
             /(p.GRID_SIZE**2*p.ANCHOR_COUNT) #TODO: subtract boxcount in denominator
 
     gamma_loss = p.LAMBDA_CONF_P * filtered_diff_gamma \
                     + p.LAMBDA_CONF_N* conj_gamma
 
-    class_loss = tf.cross_entropy(classes, pred_class)
-
+    class_loss = tf.losses.softmax_cross_entropy(classes, pred_class)
+    return tf.reduce_sum(delta_loss) \
+         + tf.reduce_sum(gamma_loss) \
+         + tf.reduce_sum(class_loss)
 
 
 
