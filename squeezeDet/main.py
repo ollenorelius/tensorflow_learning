@@ -42,7 +42,11 @@ sq9 = u.create_fire_module(mp5, 64,256,256)#(mp8, 64,256,256,512)
 
 activations = u.get_activations(sq9)
 
-loss = u.loss_function(activations, deltas, gammas, mask, classes)
+d_loss = u.delta_loss(activations, deltas, mask)
+g_loss = u.gamma_loss(activations, gammas, mask)
+c_loss = u.class_loss(activations, classes, mask)
+
+loss = d_loss + g_loss + c_loss
 
 
 
@@ -69,8 +73,11 @@ if not os.path.exists('./networks/'):
 saver = tf.train.Saver()
 for i in range(200000):
     if i%1 == 0:
-        train_accuracy = sess.run(loss, feed_dict = {keep_prob:1.0})
-        print("step %d, loss: %g" % (i, train_accuracy))
+        d, g, c = sess.run([d_loss, g_loss, c_loss], feed_dict = {keep_prob:1.0})
+        print(d)
+        print(g)
+        print(c)
+        print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
 
     if i%200 == 0:
         saver.save(sess, './networks/squeezeNight.cpt')

@@ -196,9 +196,8 @@ def get_stepped_slice(in_tensor, start, length):
                                         [-1,-1,-1,length])],3)
     return tensor_slice
 
-def loss_function(act_tensor, deltas, gammas, masks, classes):
+def delta_loss(act_tensor, deltas, masks):
     stride = (1+4+p.OUT_CLASSES)
-    print(masks.get_shape().as_list())
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
     in_depth = in_shape[3]
@@ -210,21 +209,22 @@ def loss_function(act_tensor, deltas, gammas, masks, classes):
     pred_delta = tf.reshape(pred_delta,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
 
-
-
-    pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
-    pred_gamma = tf.reshape(pred_gamma,
-                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT])
-
-    pred_class = get_stepped_slice(act_tensor, 0, p.OUT_CLASSES)
-    pred_class = tf.reshape(pred_class,
-                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
-
-    print(classes.get_shape().as_list())
     diff_delta = tf.norm(deltas - pred_delta, axis=2)
     filtered_diff_delta = tf.multiply(diff_delta,tf.to_float(masks_unwrap))
 
     delta_loss = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
+    return tf.reduce_sum(delta_loss)
+
+def gamma_loss(act_tensor, gammas, masks):
+    stride = (1+4+p.OUT_CLASSES)
+    in_shape = act_tensor.get_shape().as_list()
+    batch_size = in_shape[0]
+    in_depth = in_shape[3]
+    masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
+
+    pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
+    pred_gamma = tf.reshape(pred_gamma,
+                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT])
 
     diff_gamma = gammas - pred_gamma
     filtered_diff_gamma = tf.pow(tf.multiply(diff_gamma,tf.to_float(masks_unwrap)),2)
@@ -236,11 +236,22 @@ def loss_function(act_tensor, deltas, gammas, masks, classes):
 
     gamma_loss = p.LAMBDA_CONF_P * filtered_diff_gamma \
                     + p.LAMBDA_CONF_N* conj_gamma
+    return tf.reduce_sum(gamma_loss)
+
+def class_loss(act_tensor, classes, masks):
+    stride = (1+4+p.OUT_CLASSES)
+    in_shape = act_tensor.get_shape().as_list()
+    batch_size = in_shape[0]
+    in_depth = in_shape[3]
+    masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
+
+
+    pred_class = get_stepped_slice(act_tensor, 0, p.OUT_CLASSES)
+    pred_class = tf.reshape(pred_class,
+                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
     class_loss = tf.losses.softmax_cross_entropy(classes, pred_class)
-    return tf.reduce_sum(delta_loss) \
-         + tf.reduce_sum(gamma_loss) \
-         + tf.reduce_sum(class_loss)
+    return tf.reduce_sum(class_loss)
 
 
 
