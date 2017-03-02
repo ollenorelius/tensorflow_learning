@@ -155,8 +155,8 @@ def trans_boxes(coords):
     coords = np.transpose(coords)
     t_coords = []
     t_coords.append(coords[0] - coords[2]/2)
-    t_coords.append(coords[0] + coords[2]/2)
     t_coords.append(coords[1] - coords[3]/2)
+    t_coords.append(coords[0] + coords[2]/2)
     t_coords.append(coords[1] + coords[3]/2)
     t_coords = np.transpose(t_coords)
     return t_coords
@@ -178,7 +178,6 @@ def inv_trans_boxes(coords):
     t_coords = np.transpose(t_coords)
     assert np.shape(t_coords)[1] == 4, \
             "invalid shape in inv_trans_boxes: %i,%i" % np.shape(t_coords)
-
     return t_coords
 
 def get_stepped_slice(in_tensor, start, length):
@@ -197,6 +196,23 @@ def get_stepped_slice(in_tensor, start, length):
     return tensor_slice
 
 def delta_loss(act_tensor, deltas, masks):
+    '''
+        Takes the activation volume from the squeezeDet layer, slices out the
+        deltas from position <p.OUT_CLASSES> every <stride> layers using
+        get_stepped_slice.
+        These are then unrolled into a [x*y*k, 4] list of deltas and compared to
+        ground truths with a simple vector norm. The list is filtered using
+        the masks, multiplying all but the main anchor at every grid point by 0.
+
+        Input:  act_tensor: The entire activation volume
+                                        [batch, X, Y, stride].
+                deltas: Ground truth deltas. [batch, X*Y*ANCHOR_COUNT,4]
+
+                masks: Binary masks indicating the anchor with
+                maximum IOU for every grid point. [batch, X*Y*ANCHOR_COUNT,1]
+
+        Out: Float representing the average delta loss per grid point
+    '''
     stride = (1+4+p.OUT_CLASSES)
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
@@ -205,15 +221,16 @@ def delta_loss(act_tensor, deltas, masks):
 
 
     pred_delta = get_stepped_slice(act_tensor, p.OUT_CLASSES, 4)
-    print(pred_delta.get_shape().as_list())
+
     pred_delta = tf.reshape(pred_delta,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
 
     diff_delta = tf.norm(deltas - pred_delta, axis=2)
     filtered_diff_delta = tf.multiply(diff_delta,tf.to_float(masks_unwrap))
 
-    delta_loss = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
-    return tf.reduce_sum(delta_loss)
+    delta_loss_ = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
+    normal = batch_size * p.GRID_SIZE * p.GRID_SIZE
+    return tf.reduce_sum(delta_loss_)/normal
 
 def gamma_loss(act_tensor, gammas, masks):
     stride = (1+4+p.OUT_CLASSES)
@@ -234,9 +251,10 @@ def gamma_loss(act_tensor, gammas, masks):
     conj_gamma = tf.multiply(tf.to_float(ibar), tf.pow(pred_gamma,2))\
             /(p.GRID_SIZE**2*p.ANCHOR_COUNT) #TODO: subtract boxcount in denominator
 
-    gamma_loss = p.LAMBDA_CONF_P * filtered_diff_gamma \
+    gamma_loss_ = p.LAMBDA_CONF_P * filtered_diff_gamma \
                     + p.LAMBDA_CONF_N* conj_gamma
-    return tf.reduce_sum(gamma_loss)
+    normal = batch_size * p.GRID_SIZE * p.GRID_SIZE
+    return tf.reduce_sum(gamma_loss_)/normal
 
 def class_loss(act_tensor, classes, masks):
     stride = (1+4+p.OUT_CLASSES)
@@ -250,8 +268,8 @@ def class_loss(act_tensor, classes, masks):
     pred_class = tf.reshape(pred_class,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
-    class_loss = tf.losses.softmax_cross_entropy(classes, pred_class)
-    return tf.reduce_sum(class_loss)
+    class_loss_ = tf.losses.softmax_cross_entropy(classes, pred_class)
+    return tf.reduce_sum(class_loss_)
 
 
 

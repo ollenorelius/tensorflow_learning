@@ -6,16 +6,13 @@ import utils as u
 
 batch = reader.get_batch(40,"data/set1")
 
-oh = tf.one_hot(batch[1], params.OUT_CLASSES, dtype=tf.int32)
-
-coord = batch[2]
-deltas = batch[3]
-gammas = batch[4]
-mask = batch[5]
-classes = batch[6]
+deltas = batch[1]
+gammas = batch[2]
+mask = batch[3]
+classes = batch[4]
 
 x_image = batch[0]
-y_ = oh
+
 keep_prob = tf.placeholder(tf.float32)
 #CONVOLUTIONAL LAYERS
 x_image = tf.reshape(x_image, [-1, 256,256,3])
@@ -74,9 +71,6 @@ saver = tf.train.Saver()
 for i in range(200000):
     if i%1 == 0:
         d, g, c = sess.run([d_loss, g_loss, c_loss], feed_dict = {keep_prob:1.0})
-        print(d)
-        print(g)
-        print(c)
         print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
 
     if i%200 == 0:

@@ -4,8 +4,9 @@ import utils as u
 import numpy as np
 
 
+
 def read_labeled_image_list(image_list_file):
-    """Reads a .txt file containing paths and labeles
+    """Reads a .txt file containing paths and labels
     Args:
        image_list_file: a .txt file with one /path/to/image per line
        label: optionally, if set label will be pasted after each line
