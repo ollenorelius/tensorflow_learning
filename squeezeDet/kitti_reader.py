@@ -2,14 +2,55 @@ import tensorflow as tf
 import params as p
 import utils as u
 import numpy as np
+import os
+import re
+
+
+
+def convert_KITTI_list(folder):
+    files = os.listdir(folder)
+    pic_x_size = 1392
+    pic_y_size = 512
+    class_dict = {'Car':1, 'Van':2,
+                    'Truck':3, 'Pedestrian':4,
+                    'Person_sitting':5, 'Cyclist':6,
+                    'Tram':7, 'Misc':8,
+                    'DontCare':0}
+    out_file = open(folder+'/list.txt', 'w')
+    for f in files:
+        if re.match('[0-9]{6}.txt', f):
+            rf = open(folder+'/'+f, 'r')
+            for line in rf:
+                tokens = line.strip().split()
+                x1_p = float(tokens[4])
+                y1_p = float(tokens[5])
+                x2_p = float(tokens[6])
+                y2_p = float(tokens[7])
+
+                conv_line = []
+                conv_line.append(f.split('.')[0]+'.png')
+                conv_line.append('{0:.3f}'.format(x1_p/pic_x_size))
+                conv_line.append('{0:.3f}'.format(y1_p/pic_y_size))
+                conv_line.append('{0:.3f}'.format(x2_p/pic_x_size))
+                conv_line.append('{0:.3f}'.format(y2_p/pic_y_size))
+                conv_line.append(class_dict[tokens[0]])
+                conv_line.append('\n')
+                conv_str = ' '.join([str(i) for i in conv_line])
+                out_file.write(conv_str)
+            rf.close()
+
+    out_file.close()
+
 
 
 
 def read_labeled_image_list(image_list_file):
     """Reads a .txt file containing paths and labels
     Args:
-       image_list_file: a .txt file with one /path/to/image per line
-       label: optionally, if set label will be pasted after each line
+       image_list_file: a .txt file with one /path/to/image
+            followed by 4 coords [x1 y1 x2 y2],
+            followed by a integer class per line.
+
     Returns:
        List with all filenames in file image_list_file,
                                         list of list of labels in each pic,
@@ -119,7 +160,7 @@ def read_labeled_image_list(image_list_file):
 
 
 
-
+    print(np.size(ret_deltas))
     return filenames, labels, coords, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
@@ -161,14 +202,14 @@ def read_images_from_disk(filename,folder):
       One tensor: the decoded image.
     """
 
-    file_contents = tf.read_file(folder+'/'+filename)
-    image = tf.image.decode_jpeg(file_contents, channels=3)
+    file_contents = tf.read_file(folder+'/training/image_2/'+filename)
+    image = tf.image.decode_png(file_contents, channels=3)
     image = tf.image.resize_images(image, [256,256])
     return image
 
 def get_batch(size,folder):
     image_list, label_list, coord_list, delta_list, gamma_list, mask_list, class_list \
-                    = read_labeled_image_list("%s/list.txt"%folder)
+                    = read_labeled_image_list("%s/training/label_2/list.txt"%folder)
 
     #print(coord_list)
     images = tf.convert_to_tensor(image_list, dtype=tf.string)

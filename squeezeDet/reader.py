@@ -118,7 +118,7 @@ def read_labeled_image_list(image_list_file):
 
 
 
-
+    #print(np.size(ret_deltas))
     return filenames, labels, coords, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
@@ -172,10 +172,10 @@ def get_batch(size,folder):
     #print(coord_list)
     images = tf.convert_to_tensor(image_list, dtype=tf.string)
     #coords = tf.convert_to_tensor(coord_list, dtype=tf.float32)
-    deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32)
-    gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32)
-    masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32)
-    classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32)
+    deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32, name='delta_input')
+    gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32, name='gamma_input')
+    masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32, name='mask_input')
+    classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32, name='class_input')
 
 
     tensor_slice = tf.train.slice_input_producer(

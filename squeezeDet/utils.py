@@ -2,7 +2,7 @@ import tensorflow as tf
 import params as p
 import numpy as np
 
-def create_fire_module(input_tensor,s1,e1,e3):
+def create_fire_module(input_tensor,s1,e1,e3,name):
     """
         Adds a Fire module to the graph.
 
@@ -11,14 +11,15 @@ def create_fire_module(input_tensor,s1,e1,e3):
             s1: number of 1x1 squeeze kernels.
             e1: number of 1x1 expand kernels.
             e3: number of 3x3 expand kernels.
+            name: Name of the layer
 
         Out:
             tens: Activation volume (tf.Tensor)
     """
-
-    tens = squeeze(input_tensor,s1)
-    tens = expand(tens,e1,e3)
-    return tens
+    with tf.name_scope(name):
+        sq = squeeze(input_tensor,s1)
+        tens = expand(sq,e1,e3)
+        return tens
 
 
 def squeeze(input_tensor, s1):
@@ -31,11 +32,11 @@ def squeeze(input_tensor, s1):
         Out:
             Activation volume. (tf.Tensor)
     """
-
-    inc = input_tensor.get_shape()[3]
-    w = weight_variable([1,1,int(inc),s1])
-    b = bias_variable([s1])
-    return tf.nn.relu(conv2d(input_tensor, w) + b)
+    with tf.name_scope('squeeze'):
+        inc = input_tensor.get_shape()[3]
+        w = weight_variable([1,1,int(inc),s1], 'w_1x1')
+        b = bias_variable([s1],'b_1x1')
+        return tf.nn.relu(conv2d(input_tensor, w) + b)
 
 
 def expand(input_tensor, e1, e3):
@@ -49,16 +50,17 @@ def expand(input_tensor, e1, e3):
         Out:
             Activation volume. (tf.Tensor)
     """
-    inc = int(input_tensor.get_shape()[3])
-    w3 = weight_variable([3,3,inc,e3])
-    b3 = bias_variable([e3])
-    c3 = tf.nn.relu(conv2d(input_tensor, w3) + b3)
+    with tf.name_scope('expand'):
+        inc = int(input_tensor.get_shape()[3])
+        w3 = weight_variable([3,3,inc,e3],'w_3x3')
+        b3 = bias_variable([e3],'b_3x3')
+        c3 = tf.nn.relu(conv2d(input_tensor, w3) + b3)
 
-    w1 = weight_variable([1,1,inc,e1])
-    b1 = bias_variable([e1])
-    c1 = tf.nn.relu(conv2d(input_tensor, w1) + b1)
+        w1 = weight_variable([1,1,inc,e1],'w_1x1')
+        b1 = bias_variable([e1],'b_1x1')
+        c1 = tf.nn.relu(conv2d(input_tensor, w1) + b1)
 
-    return tf.concat([c1,c3],3)
+        return tf.concat([c1,c3],3)
 
 
 def get_activations(input_tensor):
@@ -72,13 +74,14 @@ def get_activations(input_tensor):
         Out:
             tf.Tensor of class scores. (batch x classes)
     """
-    inc = int(input_tensor.get_shape()[3])
-    out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
-    w = weight_variable([3, 3, inc, out_count])
-    b = bias_variable([out_count])
-    tens = tf.nn.relu(conv2d(input_tensor, w) + b)
+    with tf.name_scope('activation_layer'):
+        inc = int(input_tensor.get_shape()[3])
+        out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
+        w = weight_variable([3, 3, inc, out_count],'w_activations')
+        b = bias_variable([out_count],'b_activations')
+        tens = tf.nn.relu(conv2d(input_tensor, w) + b)
 
-    return tens
+        return tens
 
 def create_anchors(grid_size):
     """
@@ -220,8 +223,8 @@ def delta_loss(act_tensor, deltas, masks):
     masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
 
 
-    pred_delta = get_stepped_slice(act_tensor, p.OUT_CLASSES, 4)
-
+    #pred_delta = get_stepped_slice(act_tensor, p.OUT_CLASSES, 4)
+    pred_delta = tf.slice(act_tensor, [0,0,0,0],[-1,-1,-1,4*p.ANCHOR_COUNT])
     pred_delta = tf.reshape(pred_delta,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
 
@@ -239,16 +242,17 @@ def gamma_loss(act_tensor, gammas, masks):
     in_depth = in_shape[3]
     masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
 
-    pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
-    pred_gamma = tf.reshape(pred_gamma,
+    #pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
+    pred_gamma = tf.slice(act_tensor, [0,0,0,4*p.ANCHOR_COUNT],[-1,-1,-1,p.ANCHOR_COUNT])
+    pred_gamma_flat = tf.reshape(pred_gamma,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT])
 
-    diff_gamma = gammas - pred_gamma
+    diff_gamma = gammas - pred_gamma_flat
     filtered_diff_gamma = tf.pow(tf.multiply(diff_gamma,tf.to_float(masks_unwrap)),2)
 
     ibar = 1-masks_unwrap
 
-    conj_gamma = tf.multiply(tf.to_float(ibar), tf.pow(pred_gamma,2))\
+    conj_gamma = tf.multiply(tf.to_float(ibar), tf.pow(pred_gamma_flat,2))\
             /(p.GRID_SIZE**2*p.ANCHOR_COUNT) #TODO: subtract boxcount in denominator
 
     gamma_loss_ = p.LAMBDA_CONF_P * filtered_diff_gamma \
@@ -263,8 +267,11 @@ def class_loss(act_tensor, classes, masks):
     in_depth = in_shape[3]
     masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
 
+    #pred_class = get_stepped_slice(act_tensor, 0, p.OUT_CLASSES)
+    pred_class = tf.slice(act_tensor,
+                            [0,0,0,5*p.ANCHOR_COUNT],
+                            [-1,-1,-1,p.OUT_CLASSES*p.ANCHOR_COUNT])
 
-    pred_class = get_stepped_slice(act_tensor, 0, p.OUT_CLASSES)
     pred_class = tf.reshape(pred_class,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
@@ -273,18 +280,23 @@ def class_loss(act_tensor, classes, masks):
 
 
 
-def weight_variable(shape):
+def weight_variable(shape,name):
     initial = tf.truncated_normal(shape, stddev=0.1)
-    return tf.Variable(initial)
+    return tf.Variable(initial, name=name)
 
 
-def bias_variable(shape):
+def bias_variable(shape,name):
     initial = tf.constant(0.1, shape=shape)
-    return tf.Variable(initial)
+    return tf.Variable(initial, name=name)
 
 
 def conv2d(x,W):
     return tf.nn.conv2d(x,W,strides=[1,1,1,1], padding='SAME')
 
-def max_pool_2x2(x):
-    return tf.nn.max_pool(x, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+def max_pool_2x2(x, name):
+    with tf.name_scope('MP_' + name):
+        return tf.nn.max_pool(x,
+                          ksize=[1,2,2,1],
+                          strides=[1,2,2,1],
+                          padding='SAME',
+                          name=name)

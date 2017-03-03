@@ -14,3 +14,5 @@ shapes/justOne_squeeze/training/
 **/__pycache__
 
 squeezeDet/data/
+
+squeezeDet/output/
