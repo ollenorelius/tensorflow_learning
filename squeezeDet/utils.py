@@ -2,86 +2,7 @@ import tensorflow as tf
 import params as p
 import numpy as np
 
-def create_fire_module(input_tensor,s1,e1,e3,name):
-    """
-        Adds a Fire module to the graph.
 
-        In:
-            input_tensor: the preceding tf.Tensor.
-            s1: number of 1x1 squeeze kernels.
-            e1: number of 1x1 expand kernels.
-            e3: number of 3x3 expand kernels.
-            name: Name of the layer
-
-        Out:
-            tens: Activation volume (tf.Tensor)
-    """
-    with tf.name_scope(name):
-        sq = squeeze(input_tensor,s1)
-        tens = expand(sq,e1,e3)
-        return tens
-
-
-def squeeze(input_tensor, s1):
-    """
-        Creates a squeeze operation on input_tensor.
-        In:
-            input_tensor: the preceding tf.Tensor.
-            s1: number of 1x1 kernels.
-
-        Out:
-            Activation volume. (tf.Tensor)
-    """
-    with tf.name_scope('squeeze'):
-        inc = input_tensor.get_shape()[3]
-        w = weight_variable([1,1,int(inc),s1], 'w_1x1')
-        b = bias_variable([s1],'b_1x1')
-        return tf.nn.relu(conv2d(input_tensor, w) + b)
-
-
-def expand(input_tensor, e1, e3):
-    """
-        Creates a expand operation on input_tensor.
-        In:
-            input_tensor: the preceding tf.Tensor.
-            e1: number of 1x1 kernels.
-            e3: number of 3x3 kernels.
-
-        Out:
-            Activation volume. (tf.Tensor)
-    """
-    with tf.name_scope('expand'):
-        inc = int(input_tensor.get_shape()[3])
-        w3 = weight_variable([3,3,inc,e3],'w_3x3')
-        b3 = bias_variable([e3],'b_3x3')
-        c3 = tf.nn.relu(conv2d(input_tensor, w3) + b3)
-
-        w1 = weight_variable([1,1,inc,e1],'w_1x1')
-        b1 = bias_variable([e1],'b_1x1')
-        c1 = tf.nn.relu(conv2d(input_tensor, w1) + b1)
-
-        return tf.concat([c1,c3],3)
-
-
-def get_activations(input_tensor):
-    """
-        Gets activations by 3x3 convolution as described in the
-        SqueezeDet paper.
-
-        In:
-            Activation volume from previous convolutional layers. (tf.Tensor)
-
-        Out:
-            tf.Tensor of class scores. (batch x classes)
-    """
-    with tf.name_scope('activation_layer'):
-        inc = int(input_tensor.get_shape()[3])
-        out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
-        w = weight_variable([3, 3, inc, out_count],'w_activations')
-        b = bias_variable([out_count],'b_activations')
-        tens = tf.nn.relu(conv2d(input_tensor, w) + b)
-
-        return tens
 
 def create_anchors(grid_size):
     """
@@ -243,7 +164,10 @@ def gamma_loss(act_tensor, gammas, masks):
     masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
 
     #pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
-    pred_gamma = tf.slice(act_tensor, [0,0,0,4*p.ANCHOR_COUNT],[-1,-1,-1,p.ANCHOR_COUNT])
+    pred_gamma = tf.sigmoid(tf.slice(act_tensor,
+                            [0,0,0,4*p.ANCHOR_COUNT],
+                            [-1,-1,-1,p.ANCHOR_COUNT]))
+
     pred_gamma_flat = tf.reshape(pred_gamma,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT])
 
@@ -278,25 +202,21 @@ def class_loss(act_tensor, classes, masks):
     class_loss_ = tf.losses.softmax_cross_entropy(classes, pred_class)
     return tf.reduce_sum(class_loss_)
 
+def delta_to_box(delta, anchor):
 
+    """
+    Takes a delta and an anchor bounding box,
+     and gives the bounding box predicted.
 
-def weight_variable(shape,name):
-    initial = tf.truncated_normal(shape, stddev=0.1)
-    return tf.Variable(initial, name=name)
+    In: delta: [dx, dy, dw, dh]
+        anchor: [x, y, w, h]
 
+    Out: box: x,y,w,h
+    """
+    x = anchor[0] + anchor[2]*delta[0]
+    y = anchor[1] + anchor[3]*delta[1]
 
-def bias_variable(shape,name):
-    initial = tf.constant(0.1, shape=shape)
-    return tf.Variable(initial, name=name)
+    w = anchor[2]*np.exp(delta[2])
+    h = anchor[3]*np.exp(delta[3])
 
-
-def conv2d(x,W):
-    return tf.nn.conv2d(x,W,strides=[1,1,1,1], padding='SAME')
-
-def max_pool_2x2(x, name):
-    with tf.name_scope('MP_' + name):
-        return tf.nn.max_pool(x,
-                          ksize=[1,2,2,1],
-                          strides=[1,2,2,1],
-                          padding='SAME',
-                          name=name)
+    return [x,y,w,h]

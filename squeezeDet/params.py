@@ -17,6 +17,6 @@ ANCHOR_SIZES = [[0.8, 0.8], [0.4, 0.8], [0.8, 0.4],
                 [0.4, 0.4], [0.2, 0.4], [0.4, 0.2],
                 [0.2, 0.2], [0.1, 0.2], [0.2, 0.1]]
 
-LAMBDA_CONF_P = 0.5
-LAMBDA_CONF_N = 0.1
-LAMBDA_BBOX = 1
+LAMBDA_CONF_P = 75
+LAMBDA_CONF_N = 100
+LAMBDA_BBOX = 5

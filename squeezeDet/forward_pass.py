@@ -1,68 +1,50 @@
 import tensorflow as tf
-import reader
-import params
+import network as net
 import utils as u
+import params as p
+from PIL import Image
+from scipy import misc
 
 
-batch = reader.get_cifar_batch(1000,"cifar-10-batches-py/data_batch_1")
+input_tensor = tf.placeholder(tf.float32, shape=[None,375,1242,3])
 
-oh = tf.one_hot(batch[1], params.OUT_CLASSES, dtype=tf.int32)
+image = tf.image.resize_images(input_tensor, [256,256])
+t_activations = net.create_forward_net(image)
 
-x_image = batch[0]
-y_ = oh
-keep_prob = tf.placeholder(tf.float32)
-#CONVOLUTIONAL LAYERS
-x_image = tf.reshape(x_image, [-1, 32,32,3])
-sq1 = u.create_fire_module(x_image,16,64,64,3)
-mp1 = u.max_pool_2x2(sq1) #down to 16x16
+k = p.ANCHOR_COUNT
+t_deltas = tf.slice(t_activations, [0,0,0,0], [-1,-1,-1,4*k])
+t_gammas = tf.sigmoid(tf.slice(t_activations, [0,0,0,4*k], [-1,-1,-1,k]))
+t_classes = tf.slice(t_activations, [0,0,0,5*k], [-1,-1,-1,p.OUT_CLASSES*k])
 
-sq2 = u.create_fire_module(mp1, 16,64,64,128)
-sq3 = u.create_fire_module(sq2, 16,64,64,128)
-sq4 = u.create_fire_module(sq3, 32,128,128,128)
+t_chosen_anchor = tf.argmax(t_gammas, axis=3)
 
-mp4 = u.max_pool_2x2(sq4) #down to 8x8
-
-#sq5 = u.create_fire_module(mp4, 32,128,128,256)
-#sq6 = u.create_fire_module(sq5, 48,192,192,256)
-#sq7 = u.create_fire_module(sq6, 48,192,192,384)
-#sq8 = u.create_fire_module(sq7, 64,256,256,384)
-
-#mp8 = u.max_pool_2x2(sq8)#down to 4x4
-
-sq9 = u.create_fire_module(mp4, 32,128,128,256)#(mp8, 64,256,256,512)
-
-activations = u.get_activations(sq9, 8, 256)
-
-out = tf.nn.softmax(activations)
-
-cross_entropy = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(activations,y_))
-loss = cross_entropy
-
-
-correct_prediction = tf.equal(tf.argmax(out,1), tf.argmax(y_,1))
-
-accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
-
-print("Model constructed!")
+all_out = [t_activations, t_deltas, t_gammas, t_classes, t_chosen_anchor]
 
 sess = tf.Session()
+batch_size = 1
+print('loading image.. ', end='')
+img = [misc.imread('/home/local-admin/KITTI/training/image_2/000001.png')]
+print('Done.')
 
-
-
-coordinate = tf.train.Coordinator()
-threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
+print('loading network.. ', end='')
+saver = tf.train.Saver()
+saver.restore(sess, './networks/squeezeKITTI.cpt')
+print('Done.')
 sess.run(tf.global_variables_initializer())
 
-print("Loading network...", end=" ")
-saver = tf.train.Saver()
-saver.restore(sess, './networks/squeezeNight.cpt')
-print("Done!")
+activations, deltas, gammas, classes, chosen_anchor = \
+                sess.run(all_out, feed_dict={input_tensor: img})
 
-print("Variables initialized!")
-
-for i in range(200000):
-    train_accuracy = sess.run(accuracy, feed_dict = {keep_prob:1.0})
-    ce = sess.run(cross_entropy, feed_dict = {keep_prob:1.0})
-    print("step %d, class accuracy: %g, cross entropy: %g" % (i, train_accuracy, ce))
-
-print("Done! accuracy on test set: %g" % (test_accuracy))
+anchors = u.create_anchors(p.GRID_SIZE)
+anchor_index = 0
+for ib in range(batch_size):
+    pic = Image.fromarray(img[ib])
+    for iy in range(p.GRID_SIZE):
+        for ix in range(p.GRID_SIZE):
+            print(gammas[ib,ix,iy,chosen_anchor[ib,ix,iy]])
+            if(gammas[ib,ix,iy,chosen_anchor[ib,ix,iy]] > 0.1):
+                a_a = chosen_anchor[ib,ix,iy]
+                a_i = anchor_index*p.ANCHOR_COUNT
+                box = u.delta_to_box(deltas[ib,ix,iy,:],
+                                    anchors[a_a+a_i])
+                print(box)
