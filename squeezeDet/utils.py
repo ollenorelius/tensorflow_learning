@@ -119,7 +119,7 @@ def get_stepped_slice(in_tensor, start, length):
                                         [-1,-1,-1,length])],3)
     return tensor_slice
 
-def delta_loss(act_tensor, deltas, masks):
+def delta_loss(act_tensor, deltas, masks, N_obj):
     '''
         Takes the activation volume from the squeezeDet layer, slices out the
         deltas from position <p.OUT_CLASSES> every <stride> layers using
@@ -154,9 +154,9 @@ def delta_loss(act_tensor, deltas, masks):
 
     delta_loss_ = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
     normal = batch_size * p.GRID_SIZE * p.GRID_SIZE
-    return tf.reduce_sum(delta_loss_)/normal
+    return tf.reduce_sum(delta_loss_/N_obj)/(normal)
 
-def gamma_loss(act_tensor, gammas, masks):
+def gamma_loss(act_tensor, gammas, masks, N_obj):
     stride = (1+4+p.OUT_CLASSES)
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
@@ -177,14 +177,14 @@ def gamma_loss(act_tensor, gammas, masks):
     ibar = 1-masks_unwrap
 
     conj_gamma = tf.multiply(tf.to_float(ibar), tf.pow(pred_gamma_flat,2))\
-            /(p.GRID_SIZE**2*p.ANCHOR_COUNT) #TODO: subtract boxcount in denominator
+            /(p.GRID_SIZE**2*p.ANCHOR_COUNT-N_obj) #TODO: subtract boxcount in denominator
 
-    gamma_loss_ = p.LAMBDA_CONF_P * filtered_diff_gamma \
+    gamma_loss_ = p.LAMBDA_CONF_P / N_obj * filtered_diff_gamma \
                     + p.LAMBDA_CONF_N* conj_gamma
     normal = batch_size * p.GRID_SIZE * p.GRID_SIZE
-    return tf.reduce_sum(gamma_loss_)/normal
+    return tf.reduce_sum(gamma_loss_)/(normal)
 
-def class_loss(act_tensor, classes, masks):
+def class_loss(act_tensor, classes, masks, N_obj):
     stride = (1+4+p.OUT_CLASSES)
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
@@ -200,7 +200,7 @@ def class_loss(act_tensor, classes, masks):
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
     class_loss_ = tf.losses.softmax_cross_entropy(classes, pred_class)
-    return tf.reduce_sum(class_loss_)
+    return tf.reduce_sum(class_loss_/N_obj)
 
 def delta_to_box(delta, anchor):
 

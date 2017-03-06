@@ -84,9 +84,10 @@ def read_labeled_image_list(image_list_file):
         ret_gammas = []
         ret_masks  = []
         ret_classes =[]
-
+        N_obj = []
     anchors = u.trans_boxes(np.array(u.create_anchors(p.GRID_SIZE))) # KXY x 4
     for i in range(len(filenames)):
+        N_obj.append(len(labels[i]))
         #which box is each anchor assigned to?
         box_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
 
@@ -155,13 +156,7 @@ def read_labeled_image_list(image_list_file):
 
         input()'''
 
-
-
-
-
-
-    print(np.size(ret_deltas))
-    return filenames, labels, coords, ret_deltas,\
+    return filenames, N_obj, coords, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
 def print_summary(image_data):
@@ -208,7 +203,9 @@ def read_images_from_disk(filename,folder):
     return image
 
 def get_batch(size,folder):
-    image_list, label_list, coord_list, delta_list, gamma_list, mask_list, class_list \
+    image_list, Nobj_list,\
+     coord_list, delta_list,\
+      gamma_list, mask_list, class_list \
                     = read_labeled_image_list("%s/training/label_2/list.txt"%folder)
 
     #print(coord_list)
@@ -218,22 +215,23 @@ def get_batch(size,folder):
     gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32)
     masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32)
     classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32)
-
+    Nobj = tf.reshape(tf.convert_to_tensor(np.array(Nobj_list), dtype=tf.float32), shape=[-1, 1])
 
     tensor_slice = tf.train.slice_input_producer(
-        [images, deltas, gammas, masks, classes], shuffle=True)
+        [images, deltas, gammas, masks, classes, Nobj], shuffle=False)
 
     image = read_images_from_disk(tensor_slice[0],folder)
 
 
     image_batch, delta_batch, gamma_batch,\
-     mask_batch, class_batch\
+     mask_batch, class_batch, n_obj_batch\
                     = tf.train.batch([image,
                                     tensor_slice[1],
                                     tensor_slice[2],
                                     tensor_slice[3],
-                                    tensor_slice[4]],
+                                    tensor_slice[4],
+                                    tensor_slice[5]],
                                     batch_size=size)
 
     return image_batch, \
-    delta_batch, gamma_batch, mask_batch, class_batch
+    delta_batch, gamma_batch, mask_batch, class_batch, n_obj_batch

@@ -13,6 +13,7 @@ with tf.name_scope('Input_batching'):
     gammas = batch[2]
     mask = batch[3]
     classes = batch[4]
+    n_obj = batch[5]
 
     x_image = batch[0]
 
@@ -23,13 +24,13 @@ activations = net.create_forward_net(x_image)
 
 with tf.name_scope('Losses'):
     with tf.name_scope('deltas'):
-        d_loss = u.delta_loss(activations, deltas, mask)
+        d_loss = u.delta_loss(activations, deltas, mask,n_obj)
         tf.summary.scalar('Delta_loss', d_loss)
     with tf.name_scope('gammas'):
-        g_loss = u.gamma_loss(activations, gammas, mask)
+        g_loss = u.gamma_loss(activations, gammas, mask, n_obj)
         tf.summary.scalar('Gamma_loss', g_loss)
     with tf.name_scope('classes'):
-        c_loss = u.class_loss(activations, classes, mask)
+        c_loss = u.class_loss(activations, classes, mask, n_obj)
         tf.summary.scalar('Class_loss', c_loss)
 
     loss = d_loss + g_loss + c_loss
@@ -45,21 +46,28 @@ print("Model constructed!")
 
 sess = tf.Session()
 
-coordinate = tf.train.Coordinator()
-threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
-sess.run(tf.global_variables_initializer())
-sess.run(tf.local_variables_initializer())
-
-
-
 print("Variables initialized!")
 import os
+import sys
 
 if not os.path.exists('./networks/'):
     os.makedirs('./networks/')
 
 saver = tf.train.Saver()
 writer = tf.summary.FileWriter("output", sess.graph)
+
+coordinate = tf.train.Coordinator()
+threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
+sess.run(tf.global_variables_initializer())
+sess.run(tf.local_variables_initializer())
+
+if '-new' not in sys.argv:
+    print('loading network.. ', end='')
+    try:
+        saver.restore(sess, './networks/squeezeKITTI.cpt')
+        print('Done.')
+    except:
+        print('Couldn\'t load net, creating new')
 
 for i in range(200000):
     if i%1 == 0:
