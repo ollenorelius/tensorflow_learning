@@ -1,14 +1,21 @@
 import tensorflow as tf
 import reader
-import params
+import params as p
 import utils as u
 import kitti_reader as kr
 import network as net
 import numpy as np
 
+"""
+Script for unit testing my delta and gamma calculations.
+I load the boxes from the first picture in the batch and then
+try to get display boxes from those deltas.
+"""
+
+
 with tf.name_scope('Input_batching'):
-#batch = reader.get_batch(40,"data/set1")
-    batch = kr.get_batch(4,"data")
+    batch = reader.get_batch(1,"data/set1")
+    #batch = kr.get_batch(1,"data")
 
 
 
@@ -44,19 +51,25 @@ x_image = sess.run(batch[0])
 
 
 
-anchors = u.create_anchors(params.GRID_SIZE)
-print(anchors)
+
+#-------------------
+k = p.ANCHOR_COUNT
+gs = p.GRID_SIZE
+
+anchors = u.create_anchors(gs)
+
+#print(anchors)
 batch_size = 1
 chosen_anchor = np.argmax(mask,axis=2)
 for ib in range(batch_size):
-    for ix in range(params.GRID_SIZE):
-        for iy in range(params.GRID_SIZE):
-            print(np.shape(anchors))
-            I = (iy*params.GRID_SIZE+ix)*params.ANCHOR_COUNT
-            ca = chosen_anchor[ib,iy*params.GRID_SIZE+ix]
-            print(I+chosen_anchor[ib,iy*params.GRID_SIZE+ix])
-            #print(gammas)
-            if(gammas[ib,I+ca] > 0):
-                box = u.delta_to_box(deltas[ib,I,:],
-                                    anchors[ca+I])
-                print(box)
+    for idx in range(gs**2):
+        #print(np.shape(deltas))
+
+        ca = chosen_anchor[ib, idx]
+        #print( idx+chosen_anchor[ib, idx])
+        #print()
+        if(gammas[ib,idx*k+ca] > 0):
+            print('Box %i chosen at idx = %i with IOU: %f'%(ca,idx, gammas[ib,idx*k+ca]))
+            box = u.delta_to_box(deltas[ib,ca+idx*k,:],
+                                anchors[ca+idx*k])
+            print(u.trans_boxes(box))

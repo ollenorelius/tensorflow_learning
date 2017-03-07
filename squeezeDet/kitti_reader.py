@@ -85,7 +85,7 @@ def read_labeled_image_list(image_list_file):
         ret_masks  = []
         ret_classes =[]
         N_obj = []
-    anchors = u.trans_boxes(np.array(u.create_anchors(p.GRID_SIZE))) # KXY x 4
+    anchors = np.array(u.create_anchors(p.GRID_SIZE)) # KXY x 4
     for i in range(len(filenames)):
         N_obj.append(len(labels[i]))
         #which box is each anchor assigned to?
@@ -114,8 +114,8 @@ def read_labeled_image_list(image_list_file):
 
 
         chosen_boxes = it_coords[box_mask,:]
-        print(filenames[i])
-        print(chosen_boxes)
+        #print(filenames[i])
+        #print(chosen_boxes)
         xg = chosen_boxes[:,0]
         yg = chosen_boxes[:,1]
         wg = chosen_boxes[:,2]

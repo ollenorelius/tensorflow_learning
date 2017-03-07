@@ -5,10 +5,12 @@ import numpy as np
 
 
 def read_labeled_image_list(image_list_file):
-    """Reads a .txt file containing paths and labeles
+    """Reads a .txt file containing paths and labels
     Args:
-       image_list_file: a .txt file with one /path/to/image per line
-       label: optionally, if set label will be pasted after each line
+       image_list_file: a .txt file with one /path/to/image
+            followed by 4 coords [x1 y1 x2 y2],
+            followed by a integer class per line.
+
     Returns:
        List with all filenames in file image_list_file,
                                         list of list of labels in each pic,
@@ -42,9 +44,10 @@ def read_labeled_image_list(image_list_file):
         ret_gammas = []
         ret_masks  = []
         ret_classes =[]
-
-    anchors = u.trans_boxes(np.array(u.create_anchors(p.GRID_SIZE))) # KXY x 4
+        N_obj = []
+    anchors = np.array(u.create_anchors(p.GRID_SIZE)) # KXY x 4, (x,y,w,h)
     for i in range(len(filenames)):
+        N_obj.append(len(labels[i]))
         #which box is each anchor assigned to?
         box_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
 
@@ -71,6 +74,8 @@ def read_labeled_image_list(image_list_file):
 
 
         chosen_boxes = it_coords[box_mask,:]
+        #print(filenames[i])
+        #print(chosen_boxes)
         xg = chosen_boxes[:,0]
         yg = chosen_boxes[:,1]
         wg = chosen_boxes[:,2]
@@ -93,7 +98,8 @@ def read_labeled_image_list(image_list_file):
 
         input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
         for j in range(p.GRID_SIZE**2):
-            input_mask[j,input_mask_indices[j]] = 1
+            if(iou_mask_per_grid_point[j,input_mask_indices[j]]) != 0:
+                input_mask[j,input_mask_indices[j]] = 1
         #print(box_mask)
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
             classes[j,labels[i][box_mask[j]]] = 1
@@ -113,13 +119,7 @@ def read_labeled_image_list(image_list_file):
 
         input()'''
 
-
-
-
-
-
-    #print(np.size(ret_deltas))
-    return filenames, labels, coords, ret_deltas,\
+    return filenames, N_obj, coords, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
 def print_summary(image_data):
@@ -151,7 +151,6 @@ def print_summary(image_data):
 
 
 
-
 def read_images_from_disk(filename,folder):
     """Consumes a single filename.
     Args:
@@ -166,32 +165,35 @@ def read_images_from_disk(filename,folder):
     return image
 
 def get_batch(size,folder):
-    image_list, label_list, coord_list, delta_list, gamma_list, mask_list, class_list \
+    image_list, Nobj_list,\
+     coord_list, delta_list,\
+      gamma_list, mask_list, class_list \
                     = read_labeled_image_list("%s/list.txt"%folder)
 
     #print(coord_list)
     images = tf.convert_to_tensor(image_list, dtype=tf.string)
     #coords = tf.convert_to_tensor(coord_list, dtype=tf.float32)
-    deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32, name='delta_input')
-    gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32, name='gamma_input')
-    masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32, name='mask_input')
-    classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32, name='class_input')
-
+    deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32)
+    gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32)
+    masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32)
+    classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32)
+    Nobj = tf.reshape(tf.convert_to_tensor(np.array(Nobj_list), dtype=tf.float32), shape=[-1, 1])
 
     tensor_slice = tf.train.slice_input_producer(
-        [images, deltas, gammas, masks, classes], shuffle=True)
+        [images, deltas, gammas, masks, classes, Nobj], shuffle=True)
 
     image = read_images_from_disk(tensor_slice[0],folder)
 
 
     image_batch, delta_batch, gamma_batch,\
-     mask_batch, class_batch\
+     mask_batch, class_batch, n_obj_batch\
                     = tf.train.batch([image,
                                     tensor_slice[1],
                                     tensor_slice[2],
                                     tensor_slice[3],
-                                    tensor_slice[4]],
+                                    tensor_slice[4],
+                                    tensor_slice[5]],
                                     batch_size=size)
 
     return image_batch, \
-    delta_batch, gamma_batch, mask_batch, class_batch
+    delta_batch, gamma_batch, mask_batch, class_batch, n_obj_batch

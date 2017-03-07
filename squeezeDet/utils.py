@@ -28,16 +28,25 @@ def intersection(bbox, anchors):
     """
     Computes intersection of a SINGLE bounding box and all anchors.
 
-    bbox: coordinate tensor: 4x1 (x1, y1, x2, y2)
+    bbox: coordinate tensor: 4x1 (x, y, w, h)
     anchors: coordinate tensor: 4x(X*Y*K) with XY being number of grid points
 
     returns: a 1x(X*Y*K) tensor containing all anchor intersections.
 
     """
 
+    assert np.shape(bbox) == (4,), \
+                    "Invalid shape of bbox in utils.intersection:%s"%np.shape(bbox)
 
-    p1 = np.minimum(bbox[2], anchors[2]) - np.maximum(bbox[0], anchors[0])
-    p2 = np.minimum(bbox[3], anchors[3]) - np.maximum(bbox[1], anchors[1])
+    assert np.shape(anchors)[0] == 4, \
+                    "Invalid shape of anchors in utils.intersection!"
+    bbox_t = trans_boxes(np.transpose(bbox))
+    anchors_t = trans_boxes(np.transpose(anchors))
+
+    p1 = np.minimum(bbox_t[2], anchors_t[:,2])\
+            - np.maximum(bbox_t[0], anchors_t[:,0])
+    p2 = np.minimum(bbox_t[3], anchors_t[:,3])\
+            - np.maximum(bbox_t[1], anchors_t[:,1])
 
     p1_r = np.maximum(p1,0) #If this is negative, there is no intersection
     p2_r = np.maximum(p2,0) # so it is rectified
@@ -48,7 +57,7 @@ def union(bbox, anchors, intersections):
     """
     Computes union of a SINGLE bounding box and all anchors.
 
-    bbox: coordinate array: 4x1 (x1, y1, x2, y2)
+    bbox: coordinate array: 4x1 (x, y, w, h)
     anchors: coordinate array: 4x(X*Y*K) with XY being number of grid points
     intersections: array containing all intersections computed using
         intersection(). used to avoid double calculation.
@@ -58,8 +67,15 @@ def union(bbox, anchors, intersections):
 
     """
 
-    box_area = (bbox[2] - bbox[0])*(bbox[3] - bbox[1])
-    anchor_areas = (anchors[2] - anchors[0])*(anchors[3] - anchors[1])
+    assert np.shape(bbox) == (4,), \
+                    "Invalid shape of bbox in utils.union:%s"%np.shape(bbox)
+
+    assert np.shape(anchors)[0] == 4, \
+                    "Invalid shape of anchors in utils.union:%s"%np.shape(anchors)
+
+    box_area = bbox[2]*bbox[3]
+    anchor_areas = anchors[2,:]*anchors[3,:]
+
 
     return box_area + anchor_areas - intersections
 
@@ -202,7 +218,7 @@ def class_loss(act_tensor, classes, masks, N_obj):
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
     class_loss_ = tf.losses.softmax_cross_entropy(classes, pred_class)
-    return tf.reduce_sum(class_loss_/N_obj)
+    return tf.reduce_sum(class_loss_/N_obj)/batch_size
 
 def delta_to_box(delta, anchor):
 
@@ -215,6 +231,7 @@ def delta_to_box(delta, anchor):
 
     Out: box: x,y,w,h
     """
+
     x = anchor[0] + anchor[2]*delta[0]
     y = anchor[1] + anchor[3]*delta[1]
 

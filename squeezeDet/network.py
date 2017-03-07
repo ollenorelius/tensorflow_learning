@@ -1,10 +1,45 @@
 import tensorflow as tf
 import params as p
 
+"""
+Functions related to building the graphs.
+"""
+
+
+def create_small_net(input_tensor):
+    with tf.name_scope("Convolutional_layers"):
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
+        sq1 = create_fire_module(x_image,32,64,64,'fire1')
+        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+
+        sq2 = create_fire_module(mp1, 16,64,64,'fire2')
+        sq3 = create_fire_module(sq2, 32,128,128,'fire3')
+
+        mp2 = max_pool_2x2(sq3,'max_pool2') # 64x64
+
+        sq4 = create_fire_module(mp2, 32,128,128,'fire4')
+        mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
+
+        sq5 = create_fire_module(mp3, 64,256,256,'fire5')
+
+        mp4 = max_pool_2x2(sq5,'max_pool4')#down to 16x16
+
+        sq6 = create_fire_module(mp4, 64,256,256,'fire6')
+        mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
+
+        tf.summary.histogram('sq9', mp5)
+        activations = get_activations(mp5)
+        tf.summary.histogram('activations', activations)
+
+        return activations
 
 def create_forward_net(input_tensor):
     with tf.name_scope("Convolutional_layers"):
-        x_image = tf.reshape(input_tensor, [-1, 256,256,3])
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
         sq1 = create_fire_module(x_image,32,64,64,'fire1')
         mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
