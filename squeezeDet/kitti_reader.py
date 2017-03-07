@@ -9,8 +9,8 @@ import re
 
 def convert_KITTI_list(folder):
     files = os.listdir(folder)
-    pic_x_size = 1392
-    pic_y_size = 512
+    pic_x_size = 1224
+    pic_y_size = 370
     class_dict = {'Car':1, 'Van':2,
                     'Truck':3, 'Pedestrian':4,
                     'Person_sitting':5, 'Cyclist':6,
@@ -114,6 +114,8 @@ def read_labeled_image_list(image_list_file):
 
 
         chosen_boxes = it_coords[box_mask,:]
+        print(filenames[i])
+        print(chosen_boxes)
         xg = chosen_boxes[:,0]
         yg = chosen_boxes[:,1]
         wg = chosen_boxes[:,2]
@@ -136,7 +138,8 @@ def read_labeled_image_list(image_list_file):
 
         input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
         for j in range(p.GRID_SIZE**2):
-            input_mask[j,input_mask_indices[j]] = 1
+            if(iou_mask_per_grid_point[j,input_mask_indices[j]]) != 0:
+                input_mask[j,input_mask_indices[j]] = 1
         #print(box_mask)
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
             classes[j,labels[i][box_mask[j]]] = 1

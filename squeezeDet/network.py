@@ -109,7 +109,7 @@ def get_activations(input_tensor):
         out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
         w = weight_variable([3, 3, inc, out_count],'w_activations')
         b = bias_variable([out_count],'b_activations')
-        tens = tf.nn.relu(conv2d(input_tensor, w) + b)
+        tens = conv2d(input_tensor, w) + b
 
         return tens
 

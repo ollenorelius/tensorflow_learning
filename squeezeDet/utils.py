@@ -18,7 +18,7 @@ def create_anchors(grid_size):
     for iy in range(len(xv)):
         for ix in range(len(yv)):
             for i in range(p.ANCHOR_COUNT):
-                anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0], p.ANCHOR_SIZES[i][1]))
+                anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0]/2, p.ANCHOR_SIZES[i][1]/2))
     assert (len(anchors), len(anchors[1])) == (p.ANCHOR_COUNT * p.GRID_SIZE**2, 4), \
      "ERROR: create_anchors made a matrix of shape %i,%i" % (len(anchors), len(anchors[1]))
 
@@ -146,6 +146,7 @@ def delta_loss(act_tensor, deltas, masks, N_obj):
 
     #pred_delta = get_stepped_slice(act_tensor, p.OUT_CLASSES, 4)
     pred_delta = tf.slice(act_tensor, [0,0,0,0],[-1,-1,-1,4*p.ANCHOR_COUNT])
+    tf.summary.histogram('predicted_delta', pred_delta)
     pred_delta = tf.reshape(pred_delta,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,4])
 
@@ -164,10 +165,10 @@ def gamma_loss(act_tensor, gammas, masks, N_obj):
     masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
 
     #pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
-    pred_gamma = tf.sigmoid(tf.slice(act_tensor,
+    pred_gamma =tf.sigmoid(tf.slice(act_tensor,
                             [0,0,0,4*p.ANCHOR_COUNT],
                             [-1,-1,-1,p.ANCHOR_COUNT]))
-
+    tf.summary.histogram('predicted_gamma', pred_gamma)
     pred_gamma_flat = tf.reshape(pred_gamma,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT])
 
@@ -195,6 +196,7 @@ def class_loss(act_tensor, classes, masks, N_obj):
     pred_class = tf.slice(act_tensor,
                             [0,0,0,5*p.ANCHOR_COUNT],
                             [-1,-1,-1,p.OUT_CLASSES*p.ANCHOR_COUNT])
+    tf.summary.histogram('predicted_classes', pred_class)
 
     pred_class = tf.reshape(pred_class,
                             [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
