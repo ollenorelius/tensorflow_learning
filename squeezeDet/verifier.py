@@ -14,8 +14,8 @@ try to get display boxes from those deltas.
 
 
 with tf.name_scope('Input_batching'):
-    batch = reader.get_batch(1,"data/set1")
-    #batch = kr.get_batch(1,"data")
+    #batch = reader.get_batch(1,"data/set1")
+    batch = kr.get_batch(1,"data")
 
 
 

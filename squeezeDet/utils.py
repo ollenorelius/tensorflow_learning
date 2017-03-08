@@ -15,10 +15,11 @@ def create_anchors(grid_size):
     x = np.linspace(0,1,grid_size)
     xv, yv = np.meshgrid(x,x)
     anchors = []
-    for iy in range(len(xv)):
-        for ix in range(len(yv)):
+    for ix in range(len(xv)):
+        for iy in range(len(yv)):
             for i in range(p.ANCHOR_COUNT):
-                anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0]/2, p.ANCHOR_SIZES[i][1]/2))
+                anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0], p.ANCHOR_SIZES[i][1]))
+
     assert (len(anchors), len(anchors[1])) == (p.ANCHOR_COUNT * p.GRID_SIZE**2, 4), \
      "ERROR: create_anchors made a matrix of shape %i,%i" % (len(anchors), len(anchors[1]))
 
@@ -76,13 +77,25 @@ def union(bbox, anchors, intersections):
     box_area = bbox[2]*bbox[3]
     anchor_areas = anchors[2,:]*anchors[3,:]
 
-
     return box_area + anchor_areas - intersections
 
 def intersection_over_union(bbox, anchors):
+    '''
+        Computes IOU for all anchors with one bounding box.
+
+        Inputs:
+            bbox: coordinate array: 4x1 (x, y, w, h)
+            anchors: coordinate array: 4x(X*Y*K) with XY being number of grid points
+
+        Returns:
+            IOU: array of IOUs. (XYK) x 1
+
+    '''
+
     intersections = intersection(bbox, anchors)
     unions = union(bbox, anchors, intersections)
-    return tf.divide(intersections, unions)
+
+    return intersections/unions
 
 def trans_boxes(coords):
     """
@@ -170,11 +183,17 @@ def delta_loss(act_tensor, deltas, masks, N_obj):
     filtered_diff_delta = tf.multiply(diff_delta,tf.to_float(masks_unwrap))
 
     delta_loss_ = tf.pow(filtered_diff_delta,2) # TODO: This should be divided by number of boxes
-    normal = batch_size * p.GRID_SIZE * p.GRID_SIZE
+    normal = batch_size
     return tf.reduce_sum(delta_loss_/N_obj)/(normal)
 
 def gamma_loss(act_tensor, gammas, masks, N_obj):
-    stride = (1+4+p.OUT_CLASSES)
+    '''
+    Gets gamma losses.
+
+    In:
+        act_tensor: Full activation volume. [batch, gs, gs, depth]
+        gammas: Ground truth gammas. (IOUs) [batch]
+    '''
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
     in_depth = in_shape[3]
@@ -194,11 +213,11 @@ def gamma_loss(act_tensor, gammas, masks, N_obj):
     ibar = 1-masks_unwrap
 
     conj_gamma = tf.multiply(tf.to_float(ibar), tf.pow(pred_gamma_flat,2))\
-            /(p.GRID_SIZE**2*p.ANCHOR_COUNT-N_obj) #TODO: subtract boxcount in denominator
-
+            /(p.GRID_SIZE**2*p.ANCHOR_COUNT-N_obj)
+    tf.summary.histogram('predicted_conjugate_gamma', conj_gamma)
     gamma_loss_ = p.LAMBDA_CONF_P / N_obj * filtered_diff_gamma \
                     + p.LAMBDA_CONF_N* conj_gamma
-    normal = batch_size * p.GRID_SIZE * p.GRID_SIZE
+    normal = batch_size
     return tf.reduce_sum(gamma_loss_)/(normal)
 
 def class_loss(act_tensor, classes, masks, N_obj):

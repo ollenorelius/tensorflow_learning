@@ -11,6 +11,7 @@ def create_small_net(input_tensor):
         x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
                                                 p.IMAGE_SIZE,
                                                 p.IMAGE_CHANNELS])
+        tf.summary.histogram('image',x_image)
         sq1 = create_fire_module(x_image,32,64,64,'fire1')
         mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
@@ -101,7 +102,7 @@ def squeeze(input_tensor, s1):
         inc = input_tensor.get_shape()[3]
         w = weight_variable([1,1,int(inc),s1], 'w_1x1')
         b = bias_variable([s1],'b_1x1')
-        return tf.nn.relu(conv2d(input_tensor, w) + b)
+        return layer_activation(conv2d(input_tensor, w) + b)
 
 
 def expand(input_tensor, e1, e3):
@@ -119,11 +120,11 @@ def expand(input_tensor, e1, e3):
         inc = int(input_tensor.get_shape()[3])
         w3 = weight_variable([3,3,inc,e3],'w_3x3')
         b3 = bias_variable([e3],'b_3x3')
-        c3 = tf.nn.relu(conv2d(input_tensor, w3) + b3)
+        c3 = layer_activation(conv2d(input_tensor, w3) + b3)
 
         w1 = weight_variable([1,1,inc,e1],'w_1x1')
         b1 = bias_variable([e1],'b_1x1')
-        c1 = tf.nn.relu(conv2d(input_tensor, w1) + b1)
+        c1 = layer_activation(conv2d(input_tensor, w1) + b1)
 
         return tf.concat([c1,c3],3)
 
@@ -148,6 +149,18 @@ def get_activations(input_tensor):
 
         return tens
 
+def conv_layer(input_tensor, size, depth):
+    with tf.name_scope('conv_layer'):
+        inc = int(input_tensor.get_shape()[3])
+        w3 = weight_variable([size,size,inc,depth],'w_conv')
+        b3 = bias_variable([e3],'b_conv')
+        c3 = layer_activation(conv2d(input_tensor, w3) + b3)
+
+def layer_activation(input_tensor):
+    '''
+    Convenience function for trying different activations.
+    '''
+    return tf.nn.relu(input_tensor)
 
 def weight_variable(shape,name):
     initial = tf.truncated_normal(shape, stddev=0.1)
