@@ -231,12 +231,13 @@ def class_loss(act_tensor, classes, masks, N_obj):
     pred_class = tf.slice(act_tensor,
                             [0,0,0,5*p.ANCHOR_COUNT],
                             [-1,-1,-1,p.OUT_CLASSES*p.ANCHOR_COUNT])
+    classes_flat = tf.reshape(classes, [batch_size*p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
     tf.summary.histogram('predicted_classes', pred_class)
 
     pred_class = tf.reshape(pred_class,
-                            [batch_size,p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
+                            [batch_size*p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
 
-    class_loss_ = tf.losses.softmax_cross_entropy(classes, pred_class)
+    class_loss_ = tf.losses.softmax_cross_entropy(classes_flat, pred_class)
     return tf.reduce_sum(class_loss_/N_obj)/batch_size
 
 def delta_to_box(delta, anchor):
