@@ -10,8 +10,8 @@ input_tensor = tf.placeholder(tf.float32, shape=[None,1242,375,3])
 
 image = tf.image.resize_images(input_tensor, [256,256])
 
-#t_activations = net.create_small_net(image)
-t_activations = net.create_forward_net(image)
+t_activations = net.create_small_net(image)
+#t_activations = net.create_forward_net(image)
 k = p.ANCHOR_COUNT
 t_deltas = tf.slice(t_activations, [0,0,0,0], [-1,-1,-1,4*k])
 t_gammas = tf.sigmoid(tf.slice(t_activations, [0,0,0,4*k], [-1,-1,-1,k]))
@@ -24,24 +24,31 @@ all_out = [t_activations, t_deltas, t_gammas, t_classes, t_chosen_anchor]
 sess = tf.Session()
 batch_size = 1
 print('loading image.. ', end='')
-img = [np.transpose(misc.imread('data/mini_image/000002.png'),[1, 0, 2])]
+img = [np.transpose(misc.imread('000001.png'),[1, 0, 2])]
 print('Done.')
-net_name = 'squeeze_normal-dev'
+net_name = 'squeasdfezeKITTI_dev'
 print('loading network.. ', end='')
-saver = tf.train.Saver()
-saver.restore(sess, './networks/%s.cpt'%net_name)
-print('Done.')
+try:
+    saver = tf.train.Saver()
+    saver.restore(sess, './networks/%s.cpt'%net_name)
+    print('Done.')
+except:
+    print('Failed! using random net.')
+    sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
 
+import time
 
+start_time = time.time()
 activations, deltas, gammas, classes, chosen_anchor = \
                 sess.run(all_out, feed_dict={input_tensor: img})
-
+print('Took %f seconds!'%(time.time()-start_time))
 
 
 k = p.ANCHOR_COUNT
 gs = p.GRID_SIZE
 
-print(gammas)
+#print(gammas)
 
 gammas = np.reshape(gammas, [-1, gs**2*k])
 chosen_anchor = np.reshape(chosen_anchor,[-1,gs**2])
