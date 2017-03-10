@@ -10,7 +10,7 @@ def create_anchors(grid_size):
         Input: Grid size to distribute anchors over.
 
         Returns: (K*X*Y) x 4 tensor containing coordinates in (x,y,w,h)-form
-            in a, x, y order:
+            in a, y, x order:
     """
     x = np.linspace(0,1,grid_size)
     xv, yv = np.meshgrid(x,x)
@@ -192,7 +192,7 @@ def gamma_loss(act_tensor, gammas, masks, N_obj):
 
     In:
         act_tensor: Full activation volume. [batch, gs, gs, depth]
-        gammas: Ground truth gammas. (IOUs) [batch]
+        gammas: Ground truth gammas. (IOUs) [batch, gs*gs*k]
     '''
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
@@ -200,7 +200,7 @@ def gamma_loss(act_tensor, gammas, masks, N_obj):
     masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
 
     #pred_gamma = get_stepped_slice(act_tensor,p.OUT_CLASSES+4,1)
-    pred_gamma =tf.sigmoid(tf.slice(act_tensor,
+    pred_gamma = tf.sigmoid(tf.slice(act_tensor,
                             [0,0,0,4*p.ANCHOR_COUNT],
                             [-1,-1,-1,p.ANCHOR_COUNT]))
     tf.summary.histogram('predicted_gamma', pred_gamma)
@@ -221,21 +221,24 @@ def gamma_loss(act_tensor, gammas, masks, N_obj):
     return tf.reduce_sum(gamma_loss_)/(normal)
 
 def class_loss(act_tensor, classes, masks, N_obj):
-    stride = (1+4+p.OUT_CLASSES)
+
     in_shape = act_tensor.get_shape().as_list()
     batch_size = in_shape[0]
     in_depth = in_shape[3]
-    masks_unwrap = tf.squeeze(tf.reshape(masks, [batch_size,-1]))
-
+    masks_unwrap = tf.to_float(tf.tile(tf.reshape(masks, [-1,1]),[1, p.OUT_CLASSES]))
+    classes = tf.to_float(classes)
+    gs = p.GRID_SIZE
+    k = p.ANCHOR_COUNT
     #pred_class = get_stepped_slice(act_tensor, 0, p.OUT_CLASSES)
     pred_class = tf.slice(act_tensor,
-                            [0,0,0,5*p.ANCHOR_COUNT],
-                            [-1,-1,-1,p.OUT_CLASSES*p.ANCHOR_COUNT])
-    classes_flat = tf.reshape(classes, [batch_size*p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
+                            [0,0,0,5*k],
+                            [-1,-1,-1,p.OUT_CLASSES*k])
+    classes_flat = masks_unwrap * tf.reshape(classes, \
+            [batch_size * gs**2 * k,  p.OUT_CLASSES])
     tf.summary.histogram('predicted_classes', pred_class)
 
-    pred_class = tf.reshape(pred_class,
-                            [batch_size*p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT,p.OUT_CLASSES])
+    pred_class = masks_unwrap * tf.reshape(pred_class,
+            [batch_size * gs**2 * k,  p.OUT_CLASSES])
 
     class_loss_ = tf.losses.softmax_cross_entropy(classes_flat, pred_class)
     return tf.reduce_sum(class_loss_/N_obj)/batch_size

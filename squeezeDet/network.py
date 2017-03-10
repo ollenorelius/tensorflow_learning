@@ -12,7 +12,7 @@ def create_small_net(input_tensor):
                                                 p.IMAGE_SIZE,
                                                 p.IMAGE_CHANNELS])
         tf.summary.histogram('image',x_image)
-        sq1 = create_fire_module(x_image,32,64,64,'fire1')
+        sq1 = conv_layer(x_image,7,96,'conv1')
         mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
         sq2 = create_fire_module(mp1, 16,64,64,'fire2')
@@ -149,12 +149,13 @@ def get_activations(input_tensor):
 
         return tens
 
-def conv_layer(input_tensor, size, depth):
-    with tf.name_scope('conv_layer'):
+def conv_layer(input_tensor, size, depth, name):
+    with tf.name_scope(name):
         inc = int(input_tensor.get_shape()[3])
-        w3 = weight_variable([size,size,inc,depth],'w_conv')
-        b3 = bias_variable([e3],'b_conv')
-        c3 = layer_activation(conv2d(input_tensor, w3) + b3)
+        w = weight_variable([size,size,inc,depth],'w_conv')
+        b = bias_variable([depth],'b_conv')
+        c = layer_activation(conv2d(input_tensor, w) + b)
+        return c
 
 def layer_activation(input_tensor):
     '''

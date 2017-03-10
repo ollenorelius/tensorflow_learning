@@ -6,8 +6,8 @@ import kitti_reader as kr
 import network as net
 
 with tf.name_scope('Input_batching'):
-    #batch = reader.get_batch(40,"data/set1")
-    batch = kr.get_batch(4,"D:/KITTI")
+    batch = reader.get_batch(40,"data/set1")
+    #batch = kr.get_batch(4,"D:/KITTI")
 
     deltas = batch[1]
     gammas = batch[2]
@@ -20,8 +20,8 @@ with tf.name_scope('Input_batching'):
 keep_prob = tf.placeholder(tf.float32)
 #CONVOLUTIONAL LAYERS
 
-activations = net.create_forward_net(x_image)
-#activations = net.create_small_net(x_image)
+#activations = net.create_forward_net(x_image)
+activations = net.create_small_net(x_image)
 
 with tf.name_scope('Losses'):
     with tf.name_scope('deltas'):
@@ -59,10 +59,9 @@ writer = tf.summary.FileWriter("output", sess.graph)
 
 coordinate = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
-sess.run(tf.global_variables_initializer())
-sess.run(tf.local_variables_initializer())
 
-net_name = 'squeeze_normal-night'
+
+net_name = 'squeeze_small-dev'
 
 if '-new' not in sys.argv:
     print('loading network.. ', end='')
@@ -70,12 +69,19 @@ if '-new' not in sys.argv:
         saver.restore(sess, './networks/%s.cpt'%net_name)
         print('Done.')
     except:
-        print('Couldn\'t load net, creating new')
+        print('Couldn\'t load net, creating new! E:(%s)'%sys.exc_info()[0])
+        sess.run(tf.global_variables_initializer())
+        sess.run(tf.local_variables_initializer())
+else:
+    sess.run(tf.global_variables_initializer())
+    sess.run(tf.local_variables_initializer())
+
+
 min_loss = 1000
 for i in range(200000):
-    if (i%10 == 0):
+    if (i%1 == 0):
         d, g, c, m = sess.run([d_loss, g_loss, c_loss, merged], feed_dict = {keep_prob:1.0})
-        if i > 40:
+        if i > 4:
             test_writer.add_summary(m)
         print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
 
@@ -87,10 +93,5 @@ for i in range(200000):
 
 
 writer.close()
-
-test_accuracy = sess.run(accuracy, feed_dict = {keep_prob:1.0})
-
-print("Done! accuracy on test set: %g" % (test_accuracy))
-
 
 saver.save(sess, './networks/%sEND.cpt'%net_name)

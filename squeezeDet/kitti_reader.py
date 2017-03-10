@@ -231,7 +231,7 @@ def get_batch(size,folder):
     Nobj = tf.reshape(tf.convert_to_tensor(np.array(Nobj_list), dtype=tf.float32), shape=[-1, 1])
 
     tensor_slice = tf.train.slice_input_producer(
-        [images, deltas, gammas, masks, classes, Nobj], shuffle=True)
+        [images, deltas, gammas, masks, classes, Nobj], shuffle=False)
 
     image = read_images_from_disk(tensor_slice[0],folder)
 

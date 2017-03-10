@@ -12,9 +12,17 @@ def read_labeled_image_list(image_list_file):
             followed by a integer class per line.
 
     Returns:
-       List with all filenames in file image_list_file,
-                                        list of list of labels in each pic,
-                                        list of list of coord tuples in each pic
+
+        filenames: List with all filenames in file image_list_file.
+        N_obj: vector of number of objects in each image. [images, 1]
+        ret_deltas: 3D matrix of deltas for every image and grid point.
+                            [images, gs**2*k, 4]
+        ret_gammas: matrix of gammas for each image and grid point.
+                            [images, gs**2*k,1],
+        ret_masks:  mask highlighting the highest IOU for every grid point.
+                            [images, gs**2*k,1]
+        ret_classes: matrix of one-hot vectors.
+                            [images, gs**2*k, classes]
     """
     f = open(image_list_file, 'r')
     filenames = []
@@ -65,11 +73,12 @@ def read_labeled_image_list(image_list_file):
 
         ious = []
 
-        for box in coords[i]:
-            ious.append(u.intersection_over_union(np.transpose(box), np.transpose(anchors)))
+        for box in it_coords:
+            ious.append(u.intersection_over_union(box, np.transpose(anchors)))
+        ious = np.array(ious) #N_obj x XYK
 
-        box_mask = np.argmax(ious, 0)
-        iou_mask = np.amax(ious, 0)
+        box_mask = np.argmax(ious, 0) # XYK x 1
+        iou_mask = np.amax(ious, 0) # XYK x 1
 
 
 
@@ -98,7 +107,7 @@ def read_labeled_image_list(image_list_file):
 
         input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
         for j in range(p.GRID_SIZE**2):
-            if(iou_mask_per_grid_point[j,input_mask_indices[j]]) != 0:
+            if(iou_mask_per_grid_point[j,input_mask_indices[j]]) > 0.00001:
                 input_mask[j,input_mask_indices[j]] = 1
         #print(box_mask)
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
@@ -119,7 +128,7 @@ def read_labeled_image_list(image_list_file):
 
         input()'''
 
-    return filenames, N_obj, coords, ret_deltas,\
+    return filenames, N_obj, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
 def print_summary(image_data):
@@ -165,8 +174,7 @@ def read_images_from_disk(filename,folder):
     return image
 
 def get_batch(size,folder):
-    image_list, Nobj_list,\
-     coord_list, delta_list,\
+    image_list, Nobj_list, delta_list,\
       gamma_list, mask_list, class_list \
                     = read_labeled_image_list("%s/list.txt"%folder)
 
@@ -180,7 +188,7 @@ def get_batch(size,folder):
     Nobj = tf.reshape(tf.convert_to_tensor(np.array(Nobj_list), dtype=tf.float32), shape=[-1, 1])
 
     tensor_slice = tf.train.slice_input_producer(
-        [images, deltas, gammas, masks, classes, Nobj], shuffle=True)
+        [images, deltas, gammas, masks, classes, Nobj], shuffle=False)
 
     image = read_images_from_disk(tensor_slice[0],folder)
 
