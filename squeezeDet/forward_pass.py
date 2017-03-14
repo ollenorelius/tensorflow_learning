@@ -6,12 +6,12 @@ from PIL import Image
 from scipy import misc
 import numpy as np
 
-input_tensor = tf.placeholder(tf.float32, shape=[None,1242,375,3])
+input_tensor = tf.placeholder(tf.float32, shape=[None,375,1242,3])
 
 image = tf.image.resize_images(input_tensor, [256,256])
 
-t_activations = net.create_small_net(image)
-#t_activations = net.create_forward_net(image)
+#t_activations = net.create_small_net(image)
+t_activations = net.create_forward_net(image)
 k = p.ANCHOR_COUNT
 t_deltas = tf.slice(t_activations, [0,0,0,0], [-1,-1,-1,4*k])
 t_gammas = tf.sigmoid(tf.slice(t_activations, [0,0,0,4*k], [-1,-1,-1,k]))
@@ -24,9 +24,9 @@ all_out = [t_activations, t_deltas, t_gammas, t_classes, t_chosen_anchor]
 sess = tf.Session()
 batch_size = 1
 print('loading image.. ', end='')
-img = [np.transpose(misc.imread('000001.png'),[1, 0, 2])]
+img = [misc.imread('data/mini_image/000004.png')]
 print('Done.')
-net_name = 'squeasdfezeKITTI_dev'
+net_name = 'squeeze_normal-dev'
 print('loading network.. ', end='')
 try:
     saver = tf.train.Saver()
@@ -39,6 +39,9 @@ except:
 
 import time
 
+
+activations, deltas, gammas, classes, chosen_anchor = \
+                sess.run(all_out, feed_dict={input_tensor: img})
 start_time = time.time()
 activations, deltas, gammas, classes, chosen_anchor = \
                 sess.run(all_out, feed_dict={input_tensor: img})
@@ -66,7 +69,7 @@ for ib in range(batch_size):
         ca = chosen_anchor[ib, idx]
         #print( idx+chosen_anchor[ib, idx])
         #print(chosen_anchor.shape)
-        if(gammas[ib,idx*k+ca] > 0):
+        if(gammas[ib,idx*k+ca] > 0.05):
             print('Anchor %i chosen at idx = %i for class %i with conf: %f'\
                         %(ca,idx,class_numbers[ib,idx*k+ca], gammas[ib,idx*k+ca]))
             box = u.delta_to_box(deltas[ib,ca+idx*k,:],
