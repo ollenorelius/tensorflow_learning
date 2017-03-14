@@ -18,7 +18,7 @@ def create_anchors(grid_size):
     for ix in range(len(xv)):
         for iy in range(len(yv)):
             for i in range(p.ANCHOR_COUNT):
-                anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0], p.ANCHOR_SIZES[i][1]))
+                anchors.append((xv[ix,iy], yv[ix,iy], p.ANCHOR_SIZES[i][0]/2, p.ANCHOR_SIZES[i][1]/2))
 
     assert (len(anchors), len(anchors[1])) == (p.ANCHOR_COUNT * p.GRID_SIZE**2, 4), \
      "ERROR: create_anchors made a matrix of shape %i,%i" % (len(anchors), len(anchors[1]))

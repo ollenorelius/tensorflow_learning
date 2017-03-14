@@ -119,6 +119,9 @@ def read_labeled_image_list(image_list_file):
 
         box_mask = np.argmax(ious, 0) # XYK x 1
         iou_mask = np.amax(ious, 0) # XYK x 1
+
+        box_assignment = np.argmax(ious, 1)
+
         #print('box mask shape is: ', end='')
         #print(box_mask.shape)
         #print(np.reshape(iou_mask,[-1,9]))
@@ -147,11 +150,11 @@ def read_labeled_image_list(image_list_file):
         #Which anchor has the highest IOU at every grid point?
         input_mask_indices = np.argmax(iou_mask_per_grid_point, 1)
 
-        input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
-        for j in range(p.GRID_SIZE**2):
-            if(iou_mask_per_grid_point[j,input_mask_indices[j]]) > 0.01:
-                input_mask[j,input_mask_indices[j]] = 1
-        #print(box_mask)
+        input_mask = np.zeros([p.GRID_SIZE**2 * p.ANCHOR_COUNT])
+
+
+        input_mask[box_assignment] = 1
+        
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
             classes[j,labels[i][box_mask[j]]] = 1
 
@@ -195,10 +198,10 @@ def print_summary(image_data):
             cl = np.argmax(classes[i])
             print('Delta for pos (%i,%i) to class %i with anchor %i, IOU %f: '%(x,y,cl,i%9,gamma[i]),end='')
             print(d)
-    print('Mask: ')
+    '''print('Mask: ')
     for m in mask: print(m,)
     print('Classes: '+ '\n')
-    for c in classes: print(c,)
+    for c in classes: print(c,)'''
 
 
 

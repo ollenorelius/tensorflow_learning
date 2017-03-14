@@ -80,6 +80,8 @@ def read_labeled_image_list(image_list_file):
         box_mask = np.argmax(ious, 0) # XYK x 1
         iou_mask = np.amax(ious, 0) # XYK x 1
 
+        box_assignment = np.argmax(ious, 1)
+
 
 
         chosen_boxes = it_coords[box_mask,:]
@@ -105,10 +107,11 @@ def read_labeled_image_list(image_list_file):
         #Which anchor has the highest IOU at every grid point?
         input_mask_indices = np.argmax(iou_mask_per_grid_point, 1)
 
-        input_mask = np.zeros([p.GRID_SIZE**2, p.ANCHOR_COUNT])
-        for j in range(p.GRID_SIZE**2):
-            if(iou_mask_per_grid_point[j,input_mask_indices[j]]) > 0.00001:
-                input_mask[j,input_mask_indices[j]] = 1
+
+        input_mask = np.zeros([p.GRID_SIZE**2 * p.ANCHOR_COUNT])
+
+
+        input_mask[box_assignment] = 1
         #print(box_mask)
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
             classes[j,labels[i][box_mask[j]]] = 1
@@ -118,7 +121,7 @@ def read_labeled_image_list(image_list_file):
         ret_masks.append(input_mask)
         ret_classes.append(classes)
 
-        '''print_summary((filenames[i],
+        print_summary((filenames[i],
                        labels[i],
                        coords[i],
                        ret_deltas[-1],
@@ -126,7 +129,7 @@ def read_labeled_image_list(image_list_file):
                        ret_masks[-1],
                        ret_classes[-1] ))
 
-        input()'''
+        input()
 
     return filenames, N_obj, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
