@@ -2,9 +2,11 @@ import tensorflow as tf
 import params as p
 import utils as u
 import numpy as np
+import os
+import re
 
 
-def read_labeled_image_list(image_list_file):
+def read_image_folders(folders):
     """Reads a .txt file containing paths and labels
     Args:
        image_list_file: a .txt file with one /path/to/image
@@ -24,38 +26,53 @@ def read_labeled_image_list(image_list_file):
         ret_classes: matrix of one-hot vectors.
                             [images, gs**2*k, classes]
     """
-    f = open(image_list_file, 'r')
-    filenames = []
+
+    if type(folders) == str:
+        folders = [folders]
+
     labels = []
     coords = []
-
-    for line in f:
-        data = line.split(' ')
-
-        if data[0] in filenames:
-            ind = filenames.index(data[0])
-            labels[ind].append(int(data[5]))
-            coords[ind].append( (float(data[1]),
-                            float(data[2]),
-                            float(data[3]),
-                            float(data[4])) )
-        else:
-            filenames.append(data[0])
-            labels.append([int(data[5])])
-            coords.append( [(float(data[1]),
-                            float(data[2]),
-                            float(data[3]),
-                            float(data[4]))] )
-
-
-        ret_deltas = []
-        ret_gammas = []
-        ret_masks  = []
-        ret_classes =[]
-        N_obj = []
+    filename_list = [] # This is a list built from the names found in list.txt
+    ret_deltas = []
+    ret_gammas = []
+    ret_masks  = []
+    ret_classes =[]
+    N_obj = []
+    filenames = [] #This is all of the files in the folder
     anchors = np.array(u.create_anchors(p.GRID_SIZE)) # KXY x 4, (x,y,w,h)
-    for i in range(len(filenames)):
-        N_obj.append(len(labels[i]))
+
+    for folder in folders:
+
+
+
+        filenames_unfiltered = os.listdir(folder)
+        for unf in filenames_unfiltered:
+            if re.search('\.jpg\Z', unf) != None:
+                filenames.append(folder + '/' + unf)
+
+        f = open(folder + '/list.txt', 'r')
+        for line in f:
+            data = line.split(' ')
+            fn = folder + '/' + data[0]
+            if fn in filename_list:
+                ind = filename_list.index(fn)
+                labels[ind].append(int(data[5]))
+                coords[ind].append( (float(data[1]),
+                                float(data[2]),
+                                float(data[3]),
+                                float(data[4])) )
+            else:
+                filename_list.append(fn)
+                labels.append([int(data[5])])
+                coords.append( [(float(data[1]),
+                                float(data[2]),
+                                float(data[3]),
+                                float(data[4]))] )
+
+
+
+    for i in range(len(filename_list)):
+
         #which box is each anchor assigned to?
         box_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
 
@@ -120,18 +137,49 @@ def read_labeled_image_list(image_list_file):
         ret_gammas.append(iou_mask)
         ret_masks.append(input_mask)
         ret_classes.append(classes)
+        N_obj.append(len(labels[i]))
 
-        print_summary((filenames[i],
+
+
+    for picture in filenames:
+        print(picture)
+        if picture not in filename_list:
+            filename_list.append(picture)
+            labels.append([1])
+            coords.append([(1,1,1,1)])
+            deltas = np.ones([p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT, 4])
+            ret_deltas.append(deltas)
+
+            iou_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
+            ret_gammas.append(iou_mask)
+
+            input_mask = np.zeros([p.GRID_SIZE**2 * p.ANCHOR_COUNT])
+            ret_masks.append(input_mask)
+
+            classes = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT, p.OUT_CLASSES])
+            ret_classes.append(classes)
+
+            N_obj.append(1e-8)
+    '''for i, d in enumerate(filename_list):
+        print_summary((filename_list[i],
                        labels[i],
                        coords[i],
-                       ret_deltas[-1],
-                       ret_gammas[-1],
-                       ret_masks[-1],
-                       ret_classes[-1] ))
+                       ret_deltas[i],
+                       ret_gammas[i],
+                       ret_masks[i],
+                       ret_classes[i] ))
 
-        input()
+        input()'''
 
-    return filenames, N_obj, ret_deltas,\
+
+
+    print(np.shape(filename_list))
+    print(np.shape(N_obj))
+    print(np.shape(ret_deltas))
+    print(np.shape(ret_gammas))
+    print(np.shape(ret_masks))
+    print(np.shape(ret_classes))
+    return filename_list, N_obj, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
 def print_summary(image_data):
@@ -156,10 +204,10 @@ def print_summary(image_data):
             cl = np.argmax(classes[i])
             print('Delta for pos (%i,%i) to class %i with anchor %i, IOU %f: '%(x,y,cl,i%9,gamma[i]),end='')
             print(d)
-    print('Mask: ')
+    '''print('Mask: ')
     for m in mask: print(m,)
     print('Classes: '+ '\n')
-    for c in classes: print(c,)
+    for c in classes: print(c,)'''
 
 
 
@@ -171,7 +219,7 @@ def read_images_from_disk(filename,folder):
       One tensor: the decoded image.
     """
 
-    file_contents = tf.read_file(folder+'/'+filename)
+    file_contents = tf.read_file(filename)
     image = tf.image.decode_jpeg(file_contents, channels=3)
     image = tf.image.resize_images(image, [256,256])
     return image
@@ -179,7 +227,7 @@ def read_images_from_disk(filename,folder):
 def get_batch(size,folder):
     image_list, Nobj_list, delta_list,\
       gamma_list, mask_list, class_list \
-                    = read_labeled_image_list("%s/list.txt"%folder)
+                    = read_image_folders(folder)
 
     #print(coord_list)
     images = tf.convert_to_tensor(image_list, dtype=tf.string)

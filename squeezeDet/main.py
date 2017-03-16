@@ -41,7 +41,6 @@ with tf.name_scope('Losses'):
 
 train_step = tf.train.AdamOptimizer(0.001).minimize(loss)
 merged = tf.summary.merge_all()
-test_writer = tf.summary.FileWriter('output')
 
 print("Model constructed!")
 
@@ -54,14 +53,16 @@ import sys
 if not os.path.exists('./networks/'):
     os.makedirs('./networks/')
 
+
+net_name = 'squeeze_small-drone-dev'
 saver = tf.train.Saver()
-writer = tf.summary.FileWriter("output", sess.graph)
+writer = tf.summary.FileWriter("output/"+net_name, sess.graph)
 
 coordinate = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
 
 
-net_name = 'squeeze_small-dev'
+
 
 if '-new' not in sys.argv:
     print('loading network.. ', end='')
@@ -82,7 +83,7 @@ for i in range(200000):
     if (i%1 == 0):
         d, g, c, m = sess.run([d_loss, g_loss, c_loss, merged], feed_dict = {keep_prob:1.0})
         if i > 4:
-            test_writer.add_summary(m)
+            writer.add_summary(m)
         print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
 
         if d+g+c < min_loss:
