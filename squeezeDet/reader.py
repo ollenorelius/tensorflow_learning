@@ -212,11 +212,11 @@ def print_summary(image_data):
 
 
 def read_images_from_disk(filename,folder):
-    """Consumes a single filename.
+    """Consumes a list of filenames.
     Args:
-      filename: A scalar string tensor.
+      filename: An 1D string tensor.
     Returns:
-      One tensor: the decoded image.
+      One tensor: the decoded images.
     """
 
     file_contents = tf.read_file(filename)
