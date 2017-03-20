@@ -142,7 +142,7 @@ def read_image_folders(folders):
 
 
     for picture in filenames:
-        print(picture)
+        #print(picture)
         if picture not in filename_list:
             filename_list.append(picture)
             labels.append([1])
@@ -173,12 +173,12 @@ def read_image_folders(folders):
 
 
 
-    print(np.shape(filename_list))
+    '''print(np.shape(filename_list))
     print(np.shape(N_obj))
     print(np.shape(ret_deltas))
     print(np.shape(ret_gammas))
     print(np.shape(ret_masks))
-    print(np.shape(ret_classes))
+    print(np.shape(ret_classes))'''
     return filename_list, N_obj, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
@@ -222,6 +222,12 @@ def read_images_from_disk(filename,folder):
     file_contents = tf.read_file(filename)
     image = tf.image.decode_jpeg(file_contents, channels=3)
     image = tf.image.resize_images(image, [256,256])
+    tf.image.convert_image_dtype(image, dtype=tf.float32, saturate=False, name=None)
+    #image = tf.image.random_flip_left_right(image)
+    image = tf.image.random_brightness(image, max_delta=0.3)
+    image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+    image = tf.image.random_hue(image, max_delta=0.1)
+    tf.image.convert_image_dtype(image, dtype=tf.uint8, saturate=False, name=None)
     return image
 
 def get_batch(size,folder):
