@@ -5,6 +5,31 @@ import params as p
 Functions related to building the graphs.
 """
 
+def create_tiny_net(input_tensor, reuse=None):
+    with tf.name_scope("Convolutional_layers"):
+        with tf.variable_scope("Convolutional_layers", reuse=reuse):
+            x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                    p.IMAGE_SIZE,
+                                                    p.IMAGE_CHANNELS])
+            tf.summary.histogram('image',x_image)
+            sq1 = conv_layer(x_image,7,96,'conv1')
+            mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+
+            sq2 = create_fire_module(mp1, 16,64,64,'fire2')
+            mp2 = max_pool_2x2(sq2,'max_pool2') # 64x64
+
+            sq4 = create_fire_module(mp2, 32,64,64,'fire4')
+            mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
+            mp4 = max_pool_2x2(mp3,'max_pool4')#down to 16x16
+
+            sq6 = create_fire_module(mp4, 64,128,128,'fire6')
+            mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
+
+            tf.summary.histogram('last_max_pool', mp5)
+            activations = get_activations(mp5)
+            tf.summary.histogram('activations', activations)
+
+            return activations
 
 def create_small_net(input_tensor, reuse=None):
     with tf.name_scope("Convolutional_layers"):

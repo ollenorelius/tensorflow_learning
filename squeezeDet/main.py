@@ -27,8 +27,10 @@ with tf.name_scope('Input_batching'):
 #CONVOLUTIONAL LAYERS
 
 #activations = net.create_forward_net(x_image)
-activations = net.create_small_net(x_image)
-v_activations = net.create_small_net(v_x_image,reuse=True)
+#activations = net.create_small_net(x_image)
+#v_activations = net.create_small_net(v_x_image,reuse=True)
+activations = net.create_tiny_net(x_image)
+v_activations = net.create_tiny_net(v_x_image,reuse=True)
 
 with tf.name_scope('Losses'):
     with tf.name_scope('deltas'):
@@ -117,7 +119,7 @@ for i in range(200000):
         print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
 
         if v_d+v_g+v_c < min_loss:
-            min_loss = v_d+v_g+v_c
+            min_loss = v_d + v_g + v_c
             start_time=time.time()
             saver.save(sess, './networks/%s.cpt'%net_name)
             print('saving took %f seconds!'%(time.time()-start_time))
