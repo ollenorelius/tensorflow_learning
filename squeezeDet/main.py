@@ -110,29 +110,36 @@ else:
     sess.run(tf.local_variables_initializer())
 
 
-min_loss = 100000
+min_loss = 100000000
+#print([n.name for n in tf.get_default_graph().as_graph_def().node])
 import time
-for i in range(200000):
-    start_time=time.time()
-    d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step])
-    print('training set took %f seconds!'%(time.time()-start_time))
-    if (i%1 == 0):
+from tensorflow.python.framework import graph_util
+with sess.as_default():
+    for i in range(200000):
         start_time=time.time()
-        v_d, v_g, v_c, v_m = sess.run(
-            [v_d_loss, v_g_loss, v_c_loss, merged])
-        print('validation set took %f seconds!'%(time.time()-start_time))
-
-        if i > 1:
-            writer.add_summary(m, global_step=sess.run(global_step))
-
-        print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
-        print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
-
-        if v_d+v_g+v_c < min_loss:
-            min_loss = v_d + v_g + v_c
+        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step])
+        print('training set took %f seconds!'%(time.time()-start_time))
+        if (i%10 == 0):
             start_time=time.time()
-            saver.save(sess, './networks/%s.cpt'%net_name)
-            print('saving took %f seconds!'%(time.time()-start_time))
+            v_d, v_g, v_c, v_m = sess.run(
+                [v_d_loss, v_g_loss, v_c_loss, merged])
+            print('validation set took %f seconds!'%(time.time()-start_time))
+
+            if i > -1:
+                writer.add_summary(m, global_step=sess.run(global_step))
+
+            print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
+            print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
+
+            if v_d+v_g+v_c < min_loss:
+                min_loss = v_d + v_g + v_c
+                start_time=time.time()
+                saver.save(sess, folder_name + '/best_valid.cpt')
+
+                u.write_graph_to_pb(sess,\
+                    'activation/activations',\
+                    folder_name)
+                print('saving took %f seconds!'%(time.time()-start_time))
 
 
 writer.close()

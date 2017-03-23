@@ -1,6 +1,8 @@
 import tensorflow as tf
 import params as p
 import numpy as np
+from subprocess import call
+from tensorflow.python.framework import graph_util
 
 
 
@@ -255,7 +257,7 @@ def class_loss(act_tensor, classes, masks, N_obj):
     classes = tf.to_float(classes)
     gs = p.GRID_SIZE
     k = p.ANCHOR_COUNT
-    
+
     pred_class = tf.slice(act_tensor,
                             [0,0,0,5*k],
                             [-1,-1,-1,p.OUT_CLASSES*k])
@@ -281,11 +283,14 @@ def delta_to_box(delta, anchor):
     Out: box: N x [x,y,w,h]
     """
 
-    if delta.shape == [4]:
-        delta = [delta]
-    if anchor.shape == [4]:
-        delta = [anchor]
+    if delta.shape == (4,):
+        delta = np.array([delta])
+    if isinstance(anchor, tuple):
+        anchor = np.asarray(anchor)
+    if anchor.shape == (4,):
+        anchor = np.array([anchor])
 
+    print(delta.shape)
     N = delta.shape[0]
     d = delta.shape[1]
 
@@ -306,3 +311,22 @@ def delta_to_box(delta, anchor):
     ret_boxes[:,3] = h
 
     return ret_boxes
+
+def write_graph_to_pb(sess, output_node_names, folder):
+    minimal_graph = graph_util.convert_variables_to_constants(sess,
+                    sess.graph_def, [output_node_names])
+    tf.train.write_graph(minimal_graph, folder, 'minimal_graph.pb', as_text=False)
+    quant_command = build_quant_command(folder, output_node_names)
+    call(quant_command)
+    return 0
+
+def build_quant_command(folder, out_name):
+    quant_script = '/home/local-admin/Documents/pyDev/tensorflow/bazel-bin/tensorflow/tools/quantization/quantize_graph'
+
+    input_pb = '%s/minimal_graph.pb'%folder
+    output_pb = '%s/minimal_graph_quant.pb'%folder
+    mode = 'eightbit'
+
+    final_string=quant_script + " --input=%s --output=%s --mode=%s --output_node_names=%s"\
+        %(input_pb, output_pb, mode, out_name)
+    return final_string.split(' ')
