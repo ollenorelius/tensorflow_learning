@@ -39,7 +39,7 @@ def read_image_folders(folders):
     ret_classes =[]
     N_obj = []
     filenames = [] #This is all of the files in the folder
-    anchors = np.array(u.create_anchors(p.GRID_SIZE)) # KXY x 4, (x,y,w,h)
+    anchors = np.asarray(u.create_anchors(p.GRID_SIZE)) # KXY x 4, (x,y,w,h)
 
     for folder in folders:
 
@@ -238,11 +238,11 @@ def get_batch(size,folder):
     #print(coord_list)
     images = tf.convert_to_tensor(image_list, dtype=tf.string)
     #coords = tf.convert_to_tensor(coord_list, dtype=tf.float32)
-    deltas = tf.convert_to_tensor(np.array(delta_list), dtype=tf.float32)
-    gammas = tf.convert_to_tensor(np.array(gamma_list), dtype=tf.float32)
-    masks = tf.convert_to_tensor(np.array(mask_list), dtype=tf.int32)
-    classes = tf.convert_to_tensor(np.array(class_list), dtype=tf.int32)
-    Nobj = tf.reshape(tf.convert_to_tensor(np.array(Nobj_list), dtype=tf.float32), shape=[-1, 1])
+    deltas = tf.convert_to_tensor(np.asarray(delta_list), dtype=tf.float32)
+    gammas = tf.convert_to_tensor(np.asarray(gamma_list), dtype=tf.float32)
+    masks = tf.convert_to_tensor(np.asarray(mask_list), dtype=tf.int32)
+    classes = tf.convert_to_tensor(np.asarray(class_list), dtype=tf.int32)
+    Nobj = tf.reshape(tf.convert_to_tensor(np.asarray(Nobj_list), dtype=tf.float32), shape=[-1, 1])
 
     tensor_slice = tf.train.slice_input_producer(
         [images, deltas, gammas, masks, classes, Nobj], shuffle=True)
