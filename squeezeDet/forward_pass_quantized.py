@@ -27,34 +27,28 @@ t_classes = tf.slice(t_activations, [0,0,0,5*k], [-1,-1,-1,p.OUT_CLASSES*k])
 
 t_chosen_anchor = tf.argmax(t_gammas, axis=3)
 
-all_out = [t_activations, t_deltas, t_gammas, t_classes, t_chosen_anchor]
+all_out = [t_deltas, t_gammas, t_classes, t_chosen_anchor]
 
 sess = tf.Session()
 batch_size = 1
 print('loading image.. ', end='')
-img = misc.imread('/home/local-admin/KITTI/training/image_2/000001.png')
-img = misc.imresize(img, (256,256))
+
+def read_resize(pic):
+    return misc.imresize(misc.imread(pic), (256,256))
+
+img = [read_resize('/home/local-admin/KITTI/training/image_2/000001.png'),
+read_resize('/home/local-admin/KITTI/training/image_2/000002.png'),
+read_resize('/home/local-admin/KITTI/training/image_2/000003.png')]
+
 print('Done.')
-net_name = 'squeeze_normal-dev'
-print('loading network.. ', end='')
-try:
-    saver = tf.train.Saver()
-    saver.restore(sess, './networks/%s.cpt'%net_name)
-    print('Done.')
-except:
-    print('Failed! using random net.')
-    sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())
 
 import time
 
-
-activations, deltas, gammas, classes, chosen_anchor = \
-                sess.run(all_out, feed_dict={inp_batch: img})
-start_time = time.time()
-activations, deltas, gammas, classes, chosen_anchor = \
-                sess.run(all_out, feed_dict={inp_batch: img})
-print('Took %f seconds!'%(time.time()-start_time))
+for i in range(5):
+    start_time = time.time()
+    deltas, gammas, classes, chosen_anchor = \
+                    sess.run(all_out, feed_dict={inp_batch: img})
+    print('Took %f seconds!'%(time.time()-start_time))
 
 
 k = p.ANCHOR_COUNT
@@ -80,11 +74,11 @@ for ib in range(batch_size):
         #print( idx+chosen_anchor[ib, idx])
         #print(chosen_anchor.shape)
         if(gammas[ib,idx*k+ca] > 0.05):
-            print('Anchor %i chosen at idx = %i for class %i with conf: %f'\
-                        %(ca,idx,class_numbers[ib,idx*k+ca], gammas[ib,idx*k+ca]))
+            #print('Anchor %i chosen at idx = %i for class %i with conf: %f'\
+            #            %(ca,idx,class_numbers[ib,idx*k+ca], gammas[ib,idx*k+ca]))
             box = u.delta_to_box(deltas[ib,ca+idx*k,:],
                                 anchors[ca+idx*k])
-            print(u.trans_boxes(box))
+            #print(u.trans_boxes(box))
             if(gammas[ib,idx*k+ca] > max_gamma):
                 max_gamma = gammas[ib,idx*k+ca]
                 print('BEST')
