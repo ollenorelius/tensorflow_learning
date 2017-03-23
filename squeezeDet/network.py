@@ -6,93 +6,82 @@ Functions related to building the graphs.
 """
 
 def create_tiny_net(input_tensor, reuse=None):
-    with tf.name_scope("Convolutional_layers"):
-        with tf.variable_scope("Convolutional_layers", reuse=reuse):
-            x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
-                                                    p.IMAGE_SIZE,
-                                                    p.IMAGE_CHANNELS])
-            tf.summary.histogram('image',x_image)
-            sq1 = conv_layer(x_image,7,96,'conv1')
-            mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+    with tf.variable_scope("Convolutional_layers", reuse=reuse):
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
+        tf.summary.histogram('image',x_image)
+        sq1 = conv_layer(x_image,7,96,'conv1')
+        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
-            sq2 = create_fire_module(mp1, 16,64,64,'fire2')
-            mp2 = max_pool_2x2(sq2,'max_pool2') # 64x64
+        sq2 = create_fire_module(mp1, 16,64,64,'fire2')
+        mp2 = max_pool_2x2(sq2,'max_pool2') # 64x64
 
-            sq4 = create_fire_module(mp2, 32,64,64,'fire4')
-            mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
-            mp4 = max_pool_2x2(mp3,'max_pool4')#down to 16x16
+        sq4 = create_fire_module(mp2, 32,64,64,'fire4')
+        mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
+        mp4 = max_pool_2x2(mp3,'max_pool4')#down to 16x16
 
-            sq6 = create_fire_module(mp4, 64,128,128,'fire6')
-            mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
+        sq6 = create_fire_module(mp4, 64,128,128,'fire6')
+        mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
 
-            tf.summary.histogram('last_max_pool', mp5)
-            activations = get_activations(mp5)
-            tf.summary.histogram('activations', activations)
+        tf.summary.histogram('last_max_pool', mp5)
 
-            return activations
+        return mp5
 
 def create_small_net(input_tensor, reuse=None):
-    with tf.name_scope("Convolutional_layers"):
-        with tf.variable_scope("Convolutional_layers", reuse=reuse):
-            x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
-                                                    p.IMAGE_SIZE,
-                                                    p.IMAGE_CHANNELS])
-            tf.summary.histogram('image',x_image)
-            sq1 = conv_layer(x_image,7,96,'conv1')
-            mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+    with tf.variable_scope("Convolutional_layers", reuse=reuse):
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
+        tf.summary.histogram('image',x_image)
+        sq1 = conv_layer(x_image,7,96,'conv1')
+        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
-            sq2 = create_fire_module(mp1, 16,64,64,'fire2')
-            sq3 = create_fire_module(sq2, 32,128,128,'fire3')
+        sq2 = create_fire_module(mp1, 16,64,64,'fire2')
+        sq3 = create_fire_module(sq2, 32,128,128,'fire3')
 
-            mp2 = max_pool_2x2(sq3,'max_pool2') # 64x64
+        mp2 = max_pool_2x2(sq3,'max_pool2') # 64x64
 
-            sq4 = create_fire_module(mp2, 32,128,128,'fire4')
-            mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
+        sq4 = create_fire_module(mp2, 32,128,128,'fire4')
+        mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
 
-            sq5 = create_fire_module(mp3, 64,256,256,'fire5')
+        sq5 = create_fire_module(mp3, 64,256,256,'fire5')
 
-            mp4 = max_pool_2x2(sq5,'max_pool4')#down to 16x16
+        mp4 = max_pool_2x2(sq5,'max_pool4')#down to 16x16
 
-            sq6 = create_fire_module(mp4, 64,256,256,'fire6')
-            mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
+        sq6 = create_fire_module(mp4, 64,256,256,'fire6')
+        mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
 
-            tf.summary.histogram('sq9', mp5)
-            activations = get_activations(mp5)
-            tf.summary.histogram('activations', activations)
-
-            return activations
+        tf.summary.histogram('sq9', mp5)
+        return mp5
 
 def create_forward_net(input_tensor, reuse=None):
-    with tf.name_scope("Convolutional_layers"):
-        with tf.variable_scope("Convolutional_layers",reuse=reuse):
-            x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
-                                                    p.IMAGE_SIZE,
-                                                    p.IMAGE_CHANNELS])
-            sq1 = create_fire_module(x_image,32,64,64,'fire1')
-            mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+    with tf.variable_scope("Convolutional_layers",reuse=reuse):
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
+        sq1 = create_fire_module(x_image,32,64,64,'fire1')
+        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
-            sq2 = create_fire_module(mp1, 16,64,64,'fire2')
-            sq3 = create_fire_module(sq2, 16,64,64,'fire3')
-            sq4 = create_fire_module(sq3, 32,128,128,'fire4')
+        sq2 = create_fire_module(mp1, 16,64,64,'fire2')
+        sq3 = create_fire_module(sq2, 16,64,64,'fire3')
+        sq4 = create_fire_module(sq3, 32,128,128,'fire4')
 
-            mp2 = max_pool_2x2(sq4,'max_pool2') # 64x64
-            mp3 = max_pool_2x2(mp2,'max_pool3') #down to 32x32
+        mp2 = max_pool_2x2(sq4,'max_pool2') # 64x64
+        mp3 = max_pool_2x2(mp2,'max_pool3') #down to 32x32
 
-            sq5 = create_fire_module(mp3, 32,128,128,'fire5')
-            sq6 = create_fire_module(sq5, 48,192,192,'fire6')
-            sq7 = create_fire_module(sq6, 48,192,192,'fire7')
-            sq8 = create_fire_module(sq7, 64,256,256,'fire8')
+        sq5 = create_fire_module(mp3, 32,128,128,'fire5')
+        sq6 = create_fire_module(sq5, 48,192,192,'fire6')
+        sq7 = create_fire_module(sq6, 48,192,192,'fire7')
+        sq8 = create_fire_module(sq7, 64,256,256,'fire8')
 
-            mp4 = max_pool_2x2(sq8,'max_pool4')#down to 16x16
-            mp5 = max_pool_2x2(mp4,'max_pool5') # 8x8
+        mp4 = max_pool_2x2(sq8,'max_pool4')#down to 16x16
+        mp5 = max_pool_2x2(mp4,'max_pool5') # 8x8
 
 
-            sq9 = create_fire_module(mp5, 64,256,256,'fire9')#(mp8, 64,256,256,512)
-            tf.summary.histogram('sq9', sq9)
-            activations = get_activations(sq9)
-            tf.summary.histogram('activations', activations)
-
-            return activations
+        sq9 = create_fire_module(mp5, 64,256,256,'fire9')#(mp8, 64,256,256,512)
+        tf.summary.histogram('sq9', sq9)
+        return sq9
 
 
 def create_fire_module(input_tensor,s1,e1,e3,name):
@@ -109,11 +98,10 @@ def create_fire_module(input_tensor,s1,e1,e3,name):
         Out:
             tens: Activation volume (tf.Tensor)
     """
-    with tf.name_scope(name):
-        with tf.variable_scope(name):
-            sq = squeeze(input_tensor,s1)
-            tens = expand(sq,e1,e3)
-            return tens
+    with tf.variable_scope(name):
+        sq = squeeze(input_tensor,s1)
+        tens = expand(sq,e1,e3)
+        return tens
 
 
 def squeeze(input_tensor, s1):
@@ -126,12 +114,11 @@ def squeeze(input_tensor, s1):
         Out:
             Activation volume. (tf.Tensor)
     """
-    with tf.name_scope('squeeze'):
-        with tf.variable_scope('squeeze'):
-            inc = input_tensor.get_shape()[3]
-            w = weight_variable([1,1,int(inc),s1], 'w_1x1')
-            b = bias_variable([s1],'b_1x1')
-            return layer_activation(conv2d(input_tensor, w) + b)
+    with tf.variable_scope('squeeze'):
+        inc = input_tensor.get_shape()[3]
+        w = weight_variable([1,1,int(inc),s1], 'w_1x1')
+        b = bias_variable([s1],'b_1x1')
+        return layer_activation(conv2d(input_tensor, w) + b)
 
 
 def expand(input_tensor, e1, e3):
@@ -145,21 +132,20 @@ def expand(input_tensor, e1, e3):
         Out:
             Activation volume. (tf.Tensor)
     """
-    with tf.name_scope('expand'):
-        with tf.variable_scope('expand'):
-            inc = int(input_tensor.get_shape()[3])
-            w3 = weight_variable([3,3,inc,e3],'w_3x3')
-            b3 = bias_variable([e3],'b_3x3')
-            c3 = layer_activation(conv2d(input_tensor, w3) + b3)
+    with tf.variable_scope('expand'):
+        inc = int(input_tensor.get_shape()[3])
+        w3 = weight_variable([3,3,inc,e3],'w_3x3')
+        b3 = bias_variable([e3],'b_3x3')
+        c3 = layer_activation(conv2d(input_tensor, w3) + b3)
 
-            w1 = weight_variable([1,1,inc,e1],'w_1x1')
-            b1 = bias_variable([e1],'b_1x1')
-            c1 = layer_activation(conv2d(input_tensor, w1) + b1)
+        w1 = weight_variable([1,1,inc,e1],'w_1x1')
+        b1 = bias_variable([e1],'b_1x1')
+        c1 = layer_activation(conv2d(input_tensor, w1) + b1)
 
-            return tf.concat([c1,c3],3)
+        return tf.concat([c1,c3],3)
 
 
-def get_activations(input_tensor):
+def get_activations(input_tensor, name, reuse=None):
     """
         Gets activations by 3x3 convolution as described in the
         SqueezeDet paper.
@@ -170,24 +156,23 @@ def get_activations(input_tensor):
         Out:
             tf.Tensor of class scores. (batch x classes)
     """
-    with tf.name_scope('activation_layer'), tf.variable_scope('activation'):
+    with tf.variable_scope('activation', reuse=reuse):
 
         inc = int(input_tensor.get_shape()[3])
         out_count = p.ANCHOR_COUNT*(p.OUT_CLASSES + p.OUT_COORDS + p.OUT_CONF)
         w = weight_variable([3, 3, inc, out_count],'w_activations')
         b = bias_variable([out_count],'b_activations')
-        tens = conv2d(input_tensor, w) + b
+        tens = tf.add(conv2d(input_tensor, w),b,name=name)
 
         return tens
 
 def conv_layer(input_tensor, size, depth, name):
-    with tf.name_scope(name):
-        with tf.variable_scope(name):
-            inc = int(input_tensor.get_shape()[3])
-            w = weight_variable([size,size,inc,depth],'w_conv')
-            b = bias_variable([depth],'b_conv')
-            c = layer_activation(conv2d(input_tensor, w) + b)
-            return c
+    with tf.variable_scope(name):
+        inc = int(input_tensor.get_shape()[3])
+        w = weight_variable([size,size,inc,depth],'w_conv')
+        b = bias_variable([depth],'b_conv')
+        c = layer_activation(conv2d(input_tensor, w) + b)
+        return c
 
 def layer_activation(input_tensor):
     '''
@@ -205,8 +190,8 @@ def bias_variable(shape,name):
     return tf.get_variable(name=name, initializer=initial)
 
 
-def conv2d(x,W):
-    return tf.nn.conv2d(x,W,strides=[1,1,1,1], padding='SAME')
+def conv2d(x,W,name=None):
+    return tf.nn.conv2d(x,W,strides=[1,1,1,1], padding='SAME', name=name)
 
 def max_pool_2x2(x, name):
     with tf.name_scope('MP_' + name):

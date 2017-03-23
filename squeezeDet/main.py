@@ -5,17 +5,22 @@ import utils as u
 import kitti_reader as kr
 import network as net
 
-with tf.name_scope('Input_batching'):
-    batch = reader.get_batch(40,["data/set1", "data/set2", "data/set3"])
+with tf.variable_scope('Input_batching'):
+    data_folders=["data/set1", "data/set2", "data/set3"]
+    validation_folders=['data/validation']
+
+    batch = reader.get_batch(4,data_folders)
     #batch = kr.get_batch(40,"/home/local-admin/KITTI")
-    validation_batch = reader.get_batch(29, ["data/validation"])
+    validation_batch = reader.get_batch(29, validation_folders)
 
     deltas = batch[1]
     gammas = batch[2]
     mask = batch[3]
     classes = batch[4]
     n_obj = batch[5]
-    x_image = batch[0]
+    with tf.name_scope('input'):
+        x_image = batch[0]
+
 
     v_deltas = validation_batch[1]
     v_gammas = validation_batch[2]
@@ -25,12 +30,20 @@ with tf.name_scope('Input_batching'):
     v_x_image = validation_batch[0]
 
 #CONVOLUTIONAL LAYERS
+feature_map = net.create_forward_net(x_image)
+v_feature_map = net.create_forward_net(v_x_image,reuse=True)
+#feature_map = net.create_small_net(x_image)
+#v_feature_map = net.create_small_net(v_x_image,reuse=True)
+#feature_map = net.create_tiny_net(x_image)
+#v_feature_map = net.create_tiny_net(v_x_image,reuse=True)
 
-#activations = net.create_forward_net(x_image)
-#activations = net.create_small_net(x_image)
-#v_activations = net.create_small_net(v_x_image,reuse=True)
-activations = net.create_tiny_net(x_image)
-v_activations = net.create_tiny_net(v_x_image,reuse=True)
+
+activations = net.get_activations(feature_map, 'activations')
+print(activations.name)
+v_activations = net.get_activations(v_feature_map, 'valid_activations',reuse=True)
+
+tf.summary.histogram('activations', activations)
+tf.summary.histogram('validation_activations', v_activations)
 
 with tf.name_scope('Losses'):
     with tf.name_scope('deltas'):
@@ -60,6 +73,7 @@ with tf.name_scope('Global_step'):
     global_step = tf.Variable(0, dtype=tf.int32)
 
 train_step = tf.train.AdamOptimizer(0.0001).minimize(loss, global_step=global_step)
+
 merged = tf.summary.merge_all()
 
 
@@ -71,25 +85,21 @@ print("Variables initialized!")
 import os
 import sys
 
-if not os.path.exists('./networks/'):
-    os.makedirs('./networks/')
+net_name = 'squeeze_normal-drone-dev'
+folder_name = './networks/%s'%net_name
+if not os.path.exists(folder_name):
+    os.makedirs(folder_name)
 
-
-net_name = 'squeeze_small-drone-dev'
 saver = tf.train.Saver()
 writer = tf.summary.FileWriter("output/"+net_name, sess.graph)
-
-
 coordinate = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
-
-
 
 
 if '-new' not in sys.argv:
     print('loading network.. ', end='')
     try:
-        saver.restore(sess, './networks/%s.cpt'%net_name)
+        saver.restore(sess, folder_name + '/best_valid.cpt')
         print('Done.')
     except:
         print('Couldn\'t load net, creating new! E:(%s)'%sys.exc_info()[0])
