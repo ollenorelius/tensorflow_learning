@@ -290,7 +290,6 @@ def delta_to_box(delta, anchor):
     if anchor.shape == (4,):
         anchor = np.array([anchor])
 
-    print(delta.shape)
     N = delta.shape[0]
     d = delta.shape[1]
 
@@ -312,19 +311,19 @@ def delta_to_box(delta, anchor):
 
     return ret_boxes
 
-def write_graph_to_pb(sess, output_node_names, folder):
+def write_graph_to_pb(sess, output_node_names, name, folder):
     minimal_graph = graph_util.convert_variables_to_constants(sess,
                     sess.graph_def, [output_node_names])
-    tf.train.write_graph(minimal_graph, folder, 'minimal_graph.pb', as_text=False)
-    quant_command = build_quant_command(folder, output_node_names)
+    tf.train.write_graph(minimal_graph, folder, '%s.pb'%name, as_text=False)
+    quant_command = build_quant_command(folder, output_node_names, name)
     call(quant_command)
     return 0
 
-def build_quant_command(folder, out_name):
+def build_quant_command(folder, out_name, file_name):
     quant_script = '/home/local-admin/Documents/pyDev/tensorflow/bazel-bin/tensorflow/tools/quantization/quantize_graph'
 
-    input_pb = '%s/minimal_graph.pb'%folder
-    output_pb = '%s/minimal_graph_quant.pb'%folder
+    input_pb = '%s/%s.pb'%(folder,file_name)
+    output_pb = '%s/%s_quant.pb'%(folder,file_name)
     mode = 'eightbit'
 
     final_string=quant_script + " --input=%s --output=%s --mode=%s --output_node_names=%s"\
