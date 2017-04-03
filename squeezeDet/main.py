@@ -99,8 +99,14 @@ threads = tf.train.start_queue_runners(sess=sess, coord=coordinate)
 if '-new' not in sys.argv:
     print('loading network.. ', end='')
     try:
-        saver.restore(sess, folder_name + '/best_valid.cpt')
-        print('Done.')
+        if '-best' in sys.argv:
+            saver.restore(sess, folder_name + '/best_valid.cpt')
+            print('Starting from best net.. ', end='')
+            print('Done.')
+        else:
+            saver.restore(sess, folder_name + '/latest.cpt')
+            print('Starting from latest net.. ', end='')
+            print('Done.')
     except:
         print('Couldn\'t load net, creating new! E:(%s)'%sys.exc_info()[0])
         sess.run(tf.global_variables_initializer())
@@ -131,13 +137,23 @@ with sess.as_default():
             print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
             print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
 
+            saver.save(sess, folder_name + '/latest.cpt')
+
+            #write graph to protobuf and then quantize
+            u.write_graph_to_pb(sess,\
+                'activation/activations',\
+                'latest',\
+                folder_name)
+
             if v_d+v_g+v_c < min_loss:
                 min_loss = v_d + v_g + v_c
                 start_time=time.time()
                 saver.save(sess, folder_name + '/best_valid.cpt')
 
+                #write graph to protobuf and then quantize
                 u.write_graph_to_pb(sess,\
                     'activation/activations',\
+                    'best_valid',\
                     folder_name)
                 print('saving took %f seconds!'%(time.time()-start_time))
 
