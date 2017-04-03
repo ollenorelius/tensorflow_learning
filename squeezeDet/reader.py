@@ -114,8 +114,8 @@ def read_image_folders(folders):
         w_hat = anchors[:,2]
         h_hat = anchors[:,3]
         #print(wg)
-        deltas[:,0] = (xg-x_hat)/w_hat
-        deltas[:,1] = (yg-y_hat)/h_hat
+        deltas[:,0] = (xg-x_hat)/wg
+        deltas[:,1] = (yg-y_hat)/hg
         deltas[:,2] = np.log(wg/w_hat)
         deltas[:,3] = np.log(hg/h_hat)
 
