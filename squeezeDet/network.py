@@ -60,7 +60,7 @@ def create_forward_net(input_tensor, reuse=None):
         x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
                                                 p.IMAGE_SIZE,
                                                 p.IMAGE_CHANNELS])
-        sq1 = create_fire_module(x_image,32,64,64,'fire1')
+        sq1 = conv_layer(x_image,7,96,'conv1')
         mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
 
         sq2 = create_fire_module(mp1, 16,64,64,'fire2')
