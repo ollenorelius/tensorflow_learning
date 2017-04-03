@@ -244,7 +244,7 @@ def get_batch(size,folder):
     tensor_slice = tf.train.slice_input_producer(
         [images, deltas, gammas, masks, classes, Nobj], shuffle=True)
 
-    image, flipped = read_images_from_disk(tensor_slice[0],folder)
+    image = read_images_from_disk(tensor_slice[0],folder)
 
 
     image_batch, delta_batch, gamma_batch,\

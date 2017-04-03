@@ -18,8 +18,7 @@ with tf.variable_scope('Input_batching'):
     mask = batch[3]
     classes = batch[4]
     n_obj = batch[5]
-    with tf.name_scope('input'):
-        x_image = batch[0]
+    x_image = batch[0]
 
 
     v_deltas = validation_batch[1]
@@ -39,7 +38,6 @@ v_feature_map = net.create_forward_net(v_x_image,reuse=True)
 
 
 activations = net.get_activations(feature_map, 'activations')
-print(activations.name)
 v_activations = net.get_activations(v_feature_map, 'valid_activations',reuse=True)
 
 tf.summary.histogram('activations', activations)
@@ -114,6 +112,7 @@ if '-new' not in sys.argv:
 else:
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
+
 
 
 min_loss = 100000000
