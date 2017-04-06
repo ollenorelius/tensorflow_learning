@@ -1,6 +1,8 @@
 IMAGE_SIZE = 256
 IMAGE_CHANNELS = 3
 
+BATCH_SIZE = 10
+
 OUT_CLASSES = 2 #Classes to recognize. 9 for KITTI
 OUT_COORDS = 4 #Coordinates, for a box in 2D we need 4.
 OUT_CONF = 1 #Number of confidence scores per box. Will always be one, but written out for transparecy
