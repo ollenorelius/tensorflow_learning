@@ -33,13 +33,14 @@ with tf.variable_scope('Input_batching'):
     v_n_obj = validation_batch[5]
     v_x_image = validation_batch[0]
 
+dropout = tf.placeholder(tf.float32)
 #CONVOLUTIONAL LAYERS
-feature_map = net.create_forward_net(x_image)
-v_feature_map = net.create_forward_net(v_x_image,reuse=True)
+#feature_map = net.create_forward_net(x_image)
+#v_feature_map = net.create_forward_net(v_x_image,reuse=True)
 #feature_map = net.create_small_net(x_image)
 #v_feature_map = net.create_small_net(v_x_image,reuse=True)
-#feature_map = net.create_tiny_net(x_image)
-#v_feature_map = net.create_tiny_net(v_x_image,reuse=True)
+feature_map = net.create_tiny_net(x_image, dropout)
+v_feature_map = net.create_tiny_net(v_x_image, dropout, reuse=True)
 
 
 activations = net.get_activations(feature_map, 'activations')
@@ -89,7 +90,7 @@ print("Variables initialized!")
 import os
 import sys
 
-net_name = 'squeeze_normal-drone-dev'
+net_name = 'squeeze_tiny-drone-dev_DO'
 folder_name = './networks/%s'%net_name
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -121,19 +122,19 @@ else:
 
 
 
-min_loss = 100000000
+min_loss = 100
 #print([n.name for n in tf.get_default_graph().as_graph_def().node])
 import time
 from tensorflow.python.framework import graph_util
 with sess.as_default():
-    for i in range(200000):
+    for i in range(20000000):
         start_time=time.time()
-        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step])
+        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step], feed_dict={dropout:0.5})
         print('training set took %f seconds!'%(time.time()-start_time), end='\r')
         if (i%10 == 0):
             start_time=time.time()
             v_d, v_g, v_c, v_m = sess.run(
-                [v_d_loss, v_g_loss, v_c_loss, merged])
+                [v_d_loss, v_g_loss, v_c_loss, merged], feed_dict={dropout:1.0})
             print('validation set took %f seconds!'%(time.time()-start_time))
 
             if i > -1:
@@ -141,12 +142,17 @@ with sess.as_default():
 
             print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
             print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
+            if v_d+v_g+v_c < min_loss:
+                min_loss = v_d + v_g + v_c
+                start_time=time.time()
+                saver.save(sess, folder_name + '/best_valid.cpt')
+
         if (i%1000 == 0):
             start = time.time()
             saver.save(sess, folder_name + '/latest.cpt')
 
             #write graph to protobuf and then quantize
-            '''u.write_graph_to_pb(sess,\
+            u.write_graph_to_pb(sess,\
                 'activation/activations',\
                 'latest',\
                 folder_name)
@@ -160,7 +166,7 @@ with sess.as_default():
                 u.write_graph_to_pb(sess,\
                     'activation/activations',\
                     'best_valid',\
-                    folder_name)'''
+                    folder_name)
             print('saving took %f seconds!'%(time.time()-start_time))
 
 
