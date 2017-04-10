@@ -144,13 +144,13 @@ with sess.as_default():
             print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
             print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
 
-            saver.save(sess, folder_name + '/latest.cpt')
-
-            #write graph to protobuf and then quantize
-            u.write_graph_to_pb(sess,\
-                'activation/activations',\
-                'latest',\
-                folder_name)
+            if (i%1000 == 0):
+                saver.save(sess, folder_name + '/latest.cpt')
+                #write graph to protobuf and then quantize
+                u.write_graph_to_pb(sess,\
+                    'activation/activations',\
+                    'latest',\
+                    folder_name)
 
             if v_d+v_g+v_c < min_loss:
                 min_loss = v_d + v_g + v_c
