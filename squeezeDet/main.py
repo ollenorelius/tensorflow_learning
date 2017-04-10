@@ -147,7 +147,7 @@ with sess.as_default():
             saver.save(sess, folder_name + '/latest.cpt')
 
             #write graph to protobuf and then quantize
-            '''u.write_graph_to_pb(sess,\
+            u.write_graph_to_pb(sess,\
                 'activation/activations',\
                 'latest',\
                 folder_name)
