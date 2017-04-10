@@ -29,7 +29,7 @@ def create_tiny_net(input_tensor, dropout, reuse=None):
 
         return mp5_drop
 
-def create_small_net(input_tensor, reuse=None):
+def create_small_net(input_tensor, dropout, reuse=None):
     with tf.variable_scope("Convolutional_layers", reuse=reuse):
         x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
                                                 p.IMAGE_SIZE,
@@ -52,11 +52,11 @@ def create_small_net(input_tensor, reuse=None):
 
         sq6 = create_fire_module(mp4, 64,256,256,'fire6')
         mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
-
+        mp5_drop = tf.nn.dropout(mp5, dropout)
         tf.summary.histogram('sq9', mp5)
-        return mp5
+        return mp5_drop
 
-def create_forward_net(input_tensor, reuse=None):
+def create_forward_net(input_tensor, dropout, reuse=None):
     with tf.variable_scope("Convolutional_layers",reuse=reuse):
         x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
                                                 p.IMAGE_SIZE,
@@ -79,8 +79,10 @@ def create_forward_net(input_tensor, reuse=None):
         mp4 = max_pool_2x2(sq8,'max_pool4')#down to 16x16
         mp5 = max_pool_2x2(mp4,'max_pool5') # 8x8
 
+        mp5_drop = tf.nn.dropout(mp5, dropout)
 
-        sq9 = create_fire_module(mp5, 64,256,256,'fire9')#(mp8, 64,256,256,512)
+
+        sq9 = create_fire_module(mp5_drop, 64,256,256,'fire9')#(mp8, 64,256,256,512)
         tf.summary.histogram('sq9', sq9)
         return sq9
 

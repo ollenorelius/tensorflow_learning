@@ -35,12 +35,12 @@ with tf.variable_scope('Input_batching'):
 
 dropout = tf.placeholder(tf.float32)
 #CONVOLUTIONAL LAYERS
-#feature_map = net.create_forward_net(x_image)
-#v_feature_map = net.create_forward_net(v_x_image,reuse=True)
-#feature_map = net.create_small_net(x_image)
-#v_feature_map = net.create_small_net(v_x_image,reuse=True)
-feature_map = net.create_tiny_net(x_image, dropout)
-v_feature_map = net.create_tiny_net(v_x_image, dropout, reuse=True)
+feature_map = net.create_forward_net(x_image, dropout)
+v_feature_map = net.create_forward_net(v_x_image, dropout, reuse=True)
+#feature_map = net.create_small_net(x_image, dropout)
+#v_feature_map = net.create_small_net(v_x_image, dropout, reuse=True)
+#feature_map = net.create_tiny_net(x_image, dropout)
+#v_feature_map = net.create_tiny_net(v_x_image, dropout, reuse=True)
 
 
 activations = net.get_activations(feature_map, 'activations')
@@ -90,7 +90,7 @@ print("Variables initialized!")
 import os
 import sys
 
-net_name = 'squeeze_tiny-drone-dev_DO'
+net_name = 'squeeze_normal-drone-dev_DO_0.2'
 folder_name = './networks/%s'%net_name
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -129,7 +129,7 @@ from tensorflow.python.framework import graph_util
 with sess.as_default():
     for i in range(20000000):
         start_time=time.time()
-        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step], feed_dict={dropout:0.5})
+        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step], feed_dict={dropout:0.2})
         print('training set took %f seconds!'%(time.time()-start_time), end='\r')
         if (i%10 == 0):
             start_time=time.time()

@@ -320,7 +320,7 @@ def write_graph_to_pb(sess, output_node_names, name, folder):
     return 0
 
 def build_quant_command(folder, out_name, file_name):
-    quant_script = '/home/local-admin/Documents/pyDev/tensorflow/bazel-bin/tensorflow/tools/quantization/quantize_graph'
+    quant_script = '/home/ec2-user/src/tensorflow/bazel-bin/tensorflow/tools/quantization/quantize_graph'
 
     input_pb = '%s/%s.pb'%(folder,file_name)
     output_pb = '%s/%s_quant.pb'%(folder,file_name)
