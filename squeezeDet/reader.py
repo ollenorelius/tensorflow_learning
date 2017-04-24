@@ -42,9 +42,6 @@ def read_image_folders(folders):
     anchors = np.asarray(u.create_anchors(p.GRID_SIZE)) # KXY x 4, (x,y,w,h)
 
     for folder in folders:
-
-
-
         filenames_unfiltered = os.listdir(folder)
         for unf in filenames_unfiltered:
             if re.search('\.jpg\Z', unf) != None:
@@ -221,7 +218,7 @@ def read_images_from_disk(filename,folder):
 
     file_contents = tf.read_file(filename)
     image = tf.image.decode_jpeg(file_contents, channels=3)
-    image = tf.image.resize_images(image, [256,256])
+    image = tf.image.resize_images(image, [p.IMAGE_SIZE, p.IMAGE_SIZE])
     tf.image.convert_image_dtype(image, dtype=tf.float32, saturate=False, name=None)
     image = tf.image.random_brightness(image, max_delta=0.3)
     image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
