@@ -221,7 +221,7 @@ def read_images_from_disk(filename,folder):
 
     file_contents = tf.read_file(filename)
     image = tf.image.decode_jpeg(file_contents, channels=3)
-    image = tf.image.resize_images(image, [256,256])
+    image = tf.image.resize_images(image, [p.IMAGE_SIZE, p.IMAGE_SIZE])
     tf.image.convert_image_dtype(image, dtype=tf.float32, saturate=False, name=None)
     image = tf.image.random_brightness(image, max_delta=0.3)
     image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
