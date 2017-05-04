@@ -53,6 +53,30 @@ def create_tiny_net_big_inp(input_tensor, dropout, reuse=None):
 
         return mp5_drop
 
+def create_tiny_net_res(input_tensor, dropout, reuse=None):
+    with tf.variable_scope("Convolutional_layers", reuse=reuse):
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
+        tf.summary.histogram('image',x_image)
+        sq1 = tf.concat([conv_layer_stride2(x_image,5,32,'conv1'),x_image],3)
+        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+
+        sq2 = tf.concat([create_fire_module(mp1, 16,64,64,'fire2'),mp1],3)
+        mp2 = max_pool_2x2(sq2,'max_pool2') # 64x64
+
+        sq4 = tf.concat([create_fire_module(mp2, 32,64,64,'fire4'),mp2],3)
+        mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
+        mp4 = max_pool_2x2(mp3,'max_pool4')#down to 16x16
+
+        sq6 = tf.concat([create_fire_module(mp4, 64,128,128,'fire6'),mp4],3)
+        mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
+        mp5_drop = tf.nn.dropout(mp5, dropout)
+
+        tf.summary.histogram('last_max_pool', mp5)
+
+        return mp5_drop
+
 
 def create_small_net(input_tensor, dropout, reuse=None):
     with tf.variable_scope("Convolutional_layers", reuse=reuse):
@@ -138,6 +162,37 @@ def create_forward_net_big_input(input_tensor, dropout, reuse=None):
 
 
         sq9 = create_fire_module(mp5_drop, 64,256,256,'fire9')#(mp8, 64,256,256,512)
+        tf.summary.histogram('sq9', sq9)
+        return sq9
+
+def create_forward_net_res(input_tensor, dropout, reuse=None):
+    with tf.variable_scope("Convolutional_layers",reuse=reuse):
+        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
+                                                p.IMAGE_SIZE,
+                                                p.IMAGE_CHANNELS])
+        sq1 = tf.concat([conv_layer_stride2(x_image,7,96,'conv1'),
+             tf.image.resize_images(x_image, [p.IMAGE_SIZE//2, p.IMAGE_SIZE//2])], 3)
+        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+
+        sq2 = create_fire_module(mp1, 16,64,64,'fire2')
+        sq3 = create_fire_module(sq2, 16,64,64,'fire3')
+        sq4 = tf.concat([create_fire_module(sq3, 32,128,128,'fire4'), mp1],3)
+
+        mp2 = max_pool_2x2(sq4,'max_pool2') # 64x64
+        mp3 = max_pool_2x2(mp2,'max_pool3') #down to 32x32
+
+        sq5 = create_fire_module(mp3, 32,128,128,'fire5')
+        sq6 = create_fire_module(sq5, 48,192,192,'fire6')
+        sq7 = create_fire_module(sq6, 48,192,192,'fire7')
+        sq8 = tf.concat([create_fire_module(sq7, 64,256,256,'fire8'), mp3],3)
+
+        mp4 = max_pool_2x2(sq8,'max_pool4')#down to 16x16
+        mp5 = max_pool_2x2(mp4,'max_pool5') # 8x8
+
+        mp5_drop = tf.nn.dropout(mp5, dropout)
+
+
+        sq9 = create_fire_module(mp5_drop, 64,256,256,'fire9')
         tf.summary.histogram('sq9', sq9)
         return sq9
 

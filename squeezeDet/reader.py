@@ -6,12 +6,14 @@ import os
 import re
 
 
-def read_image_folders(folders):
+def read_image_folders(folders, classes=None):
     """Reads a .txt file containing paths and labels
     Args:
        image_list_file: a .txt file with one /path/to/image
             followed by 4 coords [x1 y1 x2 y2],
             followed by a integer class per line.
+        classes: A list of classes that will be read from file.
+            If not set, or set to None, all classes in file will be chosen.
 
     Returns:
 
@@ -50,21 +52,22 @@ def read_image_folders(folders):
         f = open(folder + '/list.txt', 'r')
         for line in f:
             data = line.split(' ')
-            fn = folder + '/' + data[0]
-            if fn in filename_list:
-                ind = filename_list.index(fn)
-                labels[ind].append(int(data[5]))
-                coords[ind].append( (float(data[1]),
-                                float(data[2]),
-                                float(data[3]),
-                                float(data[4])) )
-            else:
-                filename_list.append(fn)
-                labels.append([int(data[5])])
-                coords.append( [(float(data[1]),
-                                float(data[2]),
-                                float(data[3]),
-                                float(data[4]))] )
+            if classes == None or int(data[5]) in classes:  #Class filtering.
+                fn = folder + '/' + data[0]
+                if fn in filename_list:
+                    ind = filename_list.index(fn)
+                    labels[ind].append(int(data[5]))
+                    coords[ind].append( (float(data[1]),
+                                    float(data[2]),
+                                    float(data[3]),
+                                    float(data[4])) )
+                else:
+                    filename_list.append(fn)
+                    labels.append([int(data[5])])
+                    coords.append( [(float(data[1]),
+                                    float(data[2]),
+                                    float(data[3]),
+                                    float(data[4]))] )
 
 
 
@@ -99,8 +102,7 @@ def read_image_folders(folders):
 
 
         chosen_boxes = it_coords[box_mask,:]
-        #print(filenames[i])
-        #print(chosen_boxes)
+
         xg = chosen_boxes[:,0]
         yg = chosen_boxes[:,1]
         wg = chosen_boxes[:,2]
@@ -110,7 +112,7 @@ def read_image_folders(folders):
         y_hat = anchors[:,1]
         w_hat = anchors[:,2]
         h_hat = anchors[:,3]
-        #print(wg)
+
         deltas[:,0] = (xg-x_hat)/w_hat
         deltas[:,1] = (yg-y_hat)/h_hat
         deltas[:,2] = np.log(wg/w_hat)
@@ -120,13 +122,9 @@ def read_image_folders(folders):
         iou_mask_per_grid_point = np.reshape(iou_mask, [p.GRID_SIZE**2, p.ANCHOR_COUNT])
         #Which anchor has the highest IOU at every grid point?
         input_mask_indices = np.argmax(iou_mask_per_grid_point, 1)
-
-
         input_mask = np.zeros([p.GRID_SIZE**2 * p.ANCHOR_COUNT])
-
-
         input_mask[box_assignment] = 1
-        #print(box_mask)
+
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
             classes[j,labels[i][box_mask[j]]] = 1
 
@@ -156,29 +154,17 @@ def read_image_folders(folders):
             ret_classes.append(classes)
 
             N_obj.append(1e-8)
-    '''for i, d in enumerate(filename_list):
-        print_summary((filename_list[i],
-                       labels[i],
-                       coords[i],
-                       ret_deltas[i],
-                       ret_gammas[i],
-                       ret_masks[i],
-                       ret_classes[i] ))
 
-        input()'''
-
-
-
-    '''print(np.shape(filename_list))
-    print(np.shape(N_obj))
-    print(np.shape(ret_deltas))
-    print(np.shape(ret_gammas))
-    print(np.shape(ret_masks))
-    print(np.shape(ret_classes))'''
     return filename_list, N_obj, ret_deltas,\
            ret_gammas, ret_masks, ret_classes
 
 def print_summary(image_data):
+    '''
+    Debug method for checking read data about file.
+    Takes an array defined as in the first lines of this method.
+
+    Output to stdout.
+    '''
     name = image_data[0]
     labels = image_data[1]
     coords = image_data[2]
@@ -200,10 +186,6 @@ def print_summary(image_data):
             cl = np.argmax(classes[i])
             print('Delta for pos (%i,%i) to class %i with anchor %i, IOU %f: '%(x,y,cl,i%9,gamma[i]),end='')
             print(d)
-    '''print('Mask: ')
-    for m in mask: print(m,)
-    print('Classes: '+ '\n')
-    for c in classes: print(c,)'''
 
 
 
@@ -227,6 +209,16 @@ def read_images_from_disk(filename,folder):
     return image
 
 def get_batch(size,folder):
+    '''
+    Master method for reading data.
+    Input:
+        size: batch size. Integer representing number of pictures to load.
+        folder: path to folder from which to load data.
+
+    Returns:
+        Batched images, deltas, gammas masks, classes, object counts, each as
+        Tensors of size [batch, [data]] where data is the size of each data type.
+    '''
     image_list, Nobj_list, delta_list,\
       gamma_list, mask_list, class_list \
                     = read_image_folders(folder)

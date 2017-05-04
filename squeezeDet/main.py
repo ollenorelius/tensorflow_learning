@@ -43,9 +43,12 @@ dropout = tf.placeholder(tf.float32)
 #v_feature_map = net.create_tiny_net(v_x_image, dropout, reuse=True)
 #feature_map = net.create_tiny_net_big_inp(x_image, dropout)
 #v_feature_map = net.create_tiny_net_big_inp(v_x_image, dropout, reuse=True)
-feature_map = net.create_forward_net_big_input(x_image, dropout)
-v_feature_map = net.create_forward_net_big_input(v_x_image, dropout, reuse=True)
-
+#feature_map = net.create_tiny_net_res(x_image, dropout)
+#v_feature_map = net.create_tiny_net_res(v_x_image, dropout, reuse=True)
+#feature_map = net.create_forward_net_big_input(x_image, dropout)
+#v_feature_map = net.create_forward_net_big_input(v_x_image, dropout, reuse=True)
+feature_map = net.create_forward_net_res(x_image, dropout)
+v_feature_map = net.create_forward_net_res(v_x_image, dropout, reuse=True)
 
 activations = net.get_activations(feature_map, 'activations')
 v_activations = net.get_activations(v_feature_map, 'valid_activations',reuse=True)
@@ -81,7 +84,7 @@ with tf.device('/cpu:0'):
 with tf.name_scope('Global_step'):
     global_step = tf.Variable(0, dtype=tf.int32)
 
-train_step = tf.train.AdamOptimizer(0.001).minimize(loss, global_step=global_step)
+train_step = tf.train.AdamOptimizer(0.0001).minimize(loss, global_step=global_step)
 
 merged = tf.summary.merge_all()
 
@@ -94,7 +97,7 @@ print("Variables initialized!")
 import os
 import sys
 
-net_name = 'squeeze_normal-drone_big_DO05'
+net_name = 'normal_res_slow_DO10'
 folder_name = './networks/%s'%net_name
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)

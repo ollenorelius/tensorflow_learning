@@ -16,3 +16,5 @@ shapes/justOne_squeeze/training/
 squeezeDet/data/
 
 squeezeDet/output/
+
+squeezeDet/main_ec2\.py
