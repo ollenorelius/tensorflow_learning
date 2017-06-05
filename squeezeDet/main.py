@@ -6,12 +6,8 @@ import kitti_reader as kr
 import network as net
 
 with tf.variable_scope('Input_batching'):
-    data_folders=["data/set1",
-                  "data/set2",
-                  "data/set3",
-                  "data/set4",
-                  "data/set6"]
-    validation_folders=['data/validation']
+    data_folders=["data/training"]
+    validation_folders=['data/test']
 
     with tf.device('/cpu:0'):
         batch = reader.get_batch(params.BATCH_SIZE,data_folders)
@@ -47,8 +43,8 @@ dropout = tf.placeholder(tf.float32)
 #v_feature_map = net.create_tiny_net_res(v_x_image, dropout, reuse=True)
 #feature_map = net.create_forward_net_big_input(x_image, dropout)
 #v_feature_map = net.create_forward_net_big_input(v_x_image, dropout, reuse=True)
-feature_map = net.create_forward_net_res(x_image, dropout)
-v_feature_map = net.create_forward_net_res(v_x_image, dropout, reuse=True)
+feature_map = net.create_forward_net_new(x_image, dropout)
+v_feature_map = net.create_forward_net_new(v_x_image, dropout, reuse=True)
 
 activations = net.get_activations(feature_map, 'activations')
 v_activations = net.get_activations(v_feature_map, 'valid_activations',reuse=True)
@@ -84,20 +80,21 @@ with tf.device('/cpu:0'):
 with tf.name_scope('Global_step'):
     global_step = tf.Variable(0, dtype=tf.int32)
 
-train_step = tf.train.AdamOptimizer(0.0001).minimize(loss, global_step=global_step)
+train_step = tf.train.AdamOptimizer(0.001).minimize(loss, global_step=global_step)
 
 merged = tf.summary.merge_all()
 
 
 print("Model constructed!")
-
-sess = tf.Session()
+config = tf.ConfigProto()
+config.gpu_options.allow_growth=True
+sess = tf.Session(config=config)
 
 print("Variables initialized!")
 import os
 import sys
 
-net_name = 'normal_res_slow_DO10'
+net_name = 'big_fast_DO10_class_fix3_anch16_noempty'
 folder_name = './networks/%s'%net_name
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -136,7 +133,7 @@ from tensorflow.python.framework import graph_util
 with sess.as_default():
     for i in range(20000000):
         start_time=time.time()
-        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step], feed_dict={dropout:0.5})
+        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step], feed_dict={dropout:1.0})
         t = time.time()-start_time
         print('training set took %f seconds! (%s FPS)'%(t, params.BATCH_SIZE/t), end='\r')
         if (i%10 == 0):

@@ -6,11 +6,10 @@ from PIL import Image
 from scipy import misc
 import numpy as np
 
-input_tensor = tf.placeholder(tf.float32, shape=[None,375,1242,3])
+input_tensor = tf.placeholder(tf.float32, shape=[None, 375, 1242, 3])
 
-image = tf.image.resize_images(input_tensor, [256,256])
+image = tf.image.resize_images(input_tensor, [256, 256])
 
-#t_activations = net.create_small_net(image)
 t_activations = net.create_forward_net(image)
 k = p.ANCHOR_COUNT
 t_deltas = tf.slice(t_activations, [0,0,0,0], [-1,-1,-1,4*k])
