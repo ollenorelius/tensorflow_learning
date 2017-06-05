@@ -1,18 +1,22 @@
+"""Main training script for SqueezeDet."""
 import tensorflow as tf
 import reader
 import params
 import utils as u
-import kitti_reader as kr
 import network as net
+import os
+import sys
+import time
 
 with tf.variable_scope('Input_batching'):
-    data_folders=["data/training"]
-    validation_folders=['data/test']
+    data_folders = ["data/training"]
+    validation_folders = ['data/test']
 
     with tf.device('/cpu:0'):
-        batch = reader.get_batch(params.BATCH_SIZE,data_folders)
-        #batch = kr.get_batch(40,"/home/local-admin/KITTI")
-        validation_batch = reader.get_batch(params.BATCH_SIZE, validation_folders)
+        batch = reader.get_batch(params.BATCH_SIZE, data_folders)
+        # batch = kr.get_batch(40,"/home/local-admin/KITTI")
+        validation_batch = reader.get_batch(params.BATCH_SIZE,
+                                            validation_folders)
 
     deltas = batch[1]
     gammas = batch[2]
@@ -20,7 +24,6 @@ with tf.variable_scope('Input_batching'):
     classes = batch[4]
     n_obj = batch[5]
     x_image = batch[0]
-
 
     v_deltas = validation_batch[1]
     v_gammas = validation_batch[2]
@@ -30,24 +33,15 @@ with tf.variable_scope('Input_batching'):
     v_x_image = validation_batch[0]
 
 dropout = tf.placeholder(tf.float32)
-#CONVOLUTIONAL LAYERS
-#feature_map = net.create_forward_net(x_image, dropout)
-#v_feature_map = net.create_forward_net(v_x_image, dropout, reuse=True)
-#feature_map = net.create_small_net(x_image, dropout)
-#v_feature_map = net.create_small_net(v_x_image, dropout, reuse=True)
-#feature_map = net.create_tiny_net(x_image, dropout)
-#v_feature_map = net.create_tiny_net(v_x_image, dropout, reuse=True)
-#feature_map = net.create_tiny_net_big_inp(x_image, dropout)
-#v_feature_map = net.create_tiny_net_big_inp(v_x_image, dropout, reuse=True)
-#feature_map = net.create_tiny_net_res(x_image, dropout)
-#v_feature_map = net.create_tiny_net_res(v_x_image, dropout, reuse=True)
-#feature_map = net.create_forward_net_big_input(x_image, dropout)
-#v_feature_map = net.create_forward_net_big_input(v_x_image, dropout, reuse=True)
+
+# CONVOLUTIONAL LAYERS
 feature_map = net.create_forward_net_new(x_image, dropout)
 v_feature_map = net.create_forward_net_new(v_x_image, dropout, reuse=True)
 
 activations = net.get_activations(feature_map, 'activations')
-v_activations = net.get_activations(v_feature_map, 'valid_activations',reuse=True)
+v_activations = net.get_activations(v_feature_map,
+                                    'valid_activations',
+                                    reuse=True)
 
 tf.summary.histogram('activations', activations)
 tf.summary.histogram('validation_activations', v_activations)
@@ -55,7 +49,7 @@ tf.summary.histogram('validation_activations', v_activations)
 with tf.device('/cpu:0'):
     with tf.name_scope('Losses'):
         with tf.name_scope('deltas'):
-            d_loss = u.delta_loss(activations, deltas, mask,n_obj)
+            d_loss = u.delta_loss(activations, deltas, mask, n_obj)
             tf.summary.scalar('Delta_loss_training', d_loss)
             v_d_loss = u.delta_loss(v_activations, v_deltas, v_mask, v_n_obj)
             tf.summary.scalar('Delta_loss_validation', v_d_loss)
@@ -80,22 +74,22 @@ with tf.device('/cpu:0'):
 with tf.name_scope('Global_step'):
     global_step = tf.Variable(0, dtype=tf.int32)
 
-train_step = tf.train.AdamOptimizer(0.001).minimize(loss, global_step=global_step)
+train_step = tf.train.AdamOptimizer(0.001).minimize(loss,
+                                                    global_step=global_step)
 
 merged = tf.summary.merge_all()
 
-
 print("Model constructed!")
+
 config = tf.ConfigProto()
-config.gpu_options.allow_growth=True
+config.gpu_options.allow_growth = True
 sess = tf.Session(config=config)
 
 print("Variables initialized!")
-import os
-import sys
+
 
 net_name = 'big_fast_DO10_class_fix3_anch16_noempty'
-folder_name = './networks/%s'%net_name
+folder_name = './networks/%s' % net_name
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
 
@@ -117,58 +111,61 @@ if '-new' not in sys.argv:
             print('Starting from latest net.. ', end='')
             print('Done.')
     except:
-        print('Couldn\'t load net, creating new! E:(%s)'%sys.exc_info()[0])
+        print('Couldn\'t load net, creating new! E:(%s)' % sys.exc_info()[0])
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
 else:
     sess.run(tf.global_variables_initializer())
     sess.run(tf.local_variables_initializer())
 
-
-
 min_loss = 100
-#print([n.name for n in tf.get_default_graph().as_graph_def().node])
-import time
-from tensorflow.python.framework import graph_util
+# print([n.name for n in tf.get_default_graph().as_graph_def().node])
+
 with sess.as_default():
     for i in range(20000000):
-        start_time=time.time()
-        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step], feed_dict={dropout:1.0})
+        start_time = time.time()
+        d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step],
+                                  feed_dict={dropout: 1.0})
         t = time.time()-start_time
-        print('training set took %f seconds! (%s FPS)'%(t, params.BATCH_SIZE/t), end='\r')
-        if (i%10 == 0):
-            start_time=time.time()
+        print('training set took %f seconds! (%s FPS)'
+              % (t, params.BATCH_SIZE/t), end='\r')
+        if (i % 10 == 0):
+            start_time = time.time()
             v_d, v_g, v_c, v_m = sess.run(
-                [v_d_loss, v_g_loss, v_c_loss, merged], feed_dict={dropout:1.0})
-            print('validation set took %f seconds!'%(time.time()-start_time))
+                [v_d_loss, v_g_loss, v_c_loss, merged],
+                feed_dict={dropout: 1.0})
+
+            print('validation set took %f seconds!' % (time.time()-start_time))
 
             if i > -1:
                 writer.add_summary(m, global_step=sess.run(global_step))
 
-            print("step %d, d_loss: %g, g_loss: %g, c_loss: %g" % (i, d, g, c))
-            print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g" % (i, v_d, v_g, v_c))
+            print("step %d, d_loss: %g, g_loss: %g, c_loss: %g"
+                  % (i, d, g, c))
+            print("step %d, v_d_loss: %g, v_g_loss: %g, v_c_loss: %g"
+                  % (i, v_d, v_g, v_c))
 
-            if (i%1000 == 0):
+            if (i % 1000 == 0):
                 saver.save(sess, folder_name + '/latest.cpt')
-                #write graph to protobuf and then quantize
-                u.write_graph_to_pb(sess,\
-                    'activation/activations',\
-                    'latest',\
-                    folder_name)
+                # write graph to protobuf and then quantize
+                u.write_graph_to_pb(sess,
+                                    'activation/activations',
+                                    'latest',
+                                    folder_name)
 
             if v_d+v_g+v_c < min_loss:
                 min_loss = v_d + v_g + v_c
-                start_time=time.time()
+                start_time = time.time()
                 saver.save(sess, folder_name + '/best_valid.cpt')
 
-                #write graph to protobuf and then quantize
-                u.write_graph_to_pb(sess,\
-                    'activation/activations',\
-                    'best_valid',\
-                    folder_name)
-                print('saving took %f seconds!'%(time.time()-start_time))
+                # write graph to protobuf and then quantize
+                u.write_graph_to_pb(sess,
+                                    'activation/activations',
+                                    'best_valid',
+                                    folder_name)
+                print('saving took %f seconds!' % (time.time()-start_time))
 
 
 writer.close()
 
-saver.save(sess, './networks/%sEND.cpt'%net_name)
+saver.save(sess, './networks/%sEND.cpt' % net_name)
