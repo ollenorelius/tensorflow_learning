@@ -11,8 +11,8 @@ def convert_KITTI_list(folder):
     files = os.listdir(folder)
     pic_x_size = 1224
     pic_y_size = 370
-    class_dict = {'Car':1, 'Van':2,
-                    'Truck':3, 'Pedestrian':4,
+    class_dict = {'Car': 1, 'Van': 2,
+                  'Truck':3, 'Pedestrian':4,
                     'Person_sitting':5, 'Cyclist':6,
                     'Tram':7, 'Misc':8,
                     'DontCare':0}
@@ -75,50 +75,50 @@ def read_labeled_image_list(image_list_file):
         if data[0] in filenames:
             ind = filenames.index(data[0])
             labels[ind].append(int(data[5]))
-            coords[ind].append( (float(data[1]),
-                            float(data[2]),
-                            float(data[3]),
-                            float(data[4])) )
+            coords[ind].append((float(data[1]),
+                                float(data[2]),
+                                float(data[3]),
+                                float(data[4])))
         else:
             filenames.append(data[0])
             labels.append([int(data[5])])
-            coords.append( [(float(data[1]),
+            coords.append([(float(data[1]),
                             float(data[2]),
                             float(data[3]),
-                            float(data[4]))] )
-
+                            float(data[4]))])
 
         ret_deltas = []
         ret_gammas = []
-        ret_masks  = []
-        ret_classes =[]
+        ret_masks = []
+        ret_classes = []
         N_obj = []
-    anchors = np.array(u.create_anchors(p.GRID_SIZE)) # KXY x 4
+    anchors = np.array(u.create_anchors(p.GRID_SIZE))  # KXY x 4
     for i in range(len(filenames)):
         N_obj.append(len(labels[i]))
-        #which box is each anchor assigned to?
-        box_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
+        # which box is each anchor assigned to?
+        box_mask = np.zeros([p.GRID_SIZE * p.GRID_SIZE * p.ANCHOR_COUNT])
 
-        #This is I_ijk in the paper
-        input_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
+        # This is I_ijk in the paper
+        input_mask = np.zeros([p.GRID_SIZE * p.GRID_SIZE * p.ANCHOR_COUNT])
 
-        #What is the IOU at every grid point and every anchor?
-        iou_mask = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT])
+        # What is the IOU at every grid point and every anchor?
+        iou_mask = np.zeros([p.GRID_SIZE * p.GRID_SIZE * p.ANCHOR_COUNT])
 
         deltas = np.zeros([p.GRID_SIZE*p.GRID_SIZE*p.ANCHOR_COUNT, 4])
 
-        it_coords = u.inv_trans_boxes(coords[i]) # x,y,w,h
+        it_coords = u.inv_trans_boxes(coords[i])  # x,y,w,h
 
-        classes = np.zeros([p.GRID_SIZE* p.GRID_SIZE* p.ANCHOR_COUNT, p.OUT_CLASSES])
+        classes = np.zeros([p.GRID_SIZE * p.GRID_SIZE * p.ANCHOR_COUNT,
+                            p.OUT_CLASSES])
 
         ious = []
 
         for box in it_coords:
             ious.append(u.intersection_over_union(box, np.transpose(anchors)))
-        ious = np.array(ious) #N_obj x XYK
+        ious = np.array(ious)  # N_obj x XYK
 
-        box_mask = np.argmax(ious, 0) # XYK x 1
-        iou_mask = np.amax(ious, 0) # XYK x 1
+        box_mask = np.argmax(ious, 0)  # XYK x 1
+        iou_mask = np.amax(ious, 0)  # XYK x 1
 
         box_assignment = np.argmax(ious, 1)
 
@@ -127,34 +127,33 @@ def read_labeled_image_list(image_list_file):
         #print(np.reshape(iou_mask,[-1,9]))
 
 
-        chosen_boxes = it_coords[box_mask,:]
+        chosen_boxes = it_coords[box_mask, :]
         #print(filenames[i])
         #print(chosen_boxes)
-        xg = chosen_boxes[:,0]
-        yg = chosen_boxes[:,1]
-        wg = chosen_boxes[:,2]
-        hg = chosen_boxes[:,3]
+        xg = chosen_boxes[:, 0]
+        yg = chosen_boxes[:, 1]
+        wg = chosen_boxes[:, 2]
+        hg = chosen_boxes[:, 3]
 
-        x_hat = anchors[:,0]
-        y_hat = anchors[:,1]
-        w_hat = anchors[:,2]
-        h_hat = anchors[:,3]
-        #print(wg)
-        deltas[:,0] = (xg-x_hat)/w_hat
-        deltas[:,1] = (yg-y_hat)/h_hat
-        deltas[:,2] = np.log(wg/w_hat)
-        deltas[:,3] = np.log(hg/h_hat)
+        x_hat = anchors[:, 0]
+        y_hat = anchors[:, 1]
+        w_hat = anchors[:, 2]
+        h_hat = anchors[:, 3]
+        # print(wg)
+        deltas[:, 0] = (xg-x_hat)/w_hat
+        deltas[:, 1] = (yg-y_hat)/h_hat
+        deltas[:, 2] = np.log(wg/w_hat)
+        deltas[:, 3] = np.log(hg/h_hat)
 
-        #Reshaping the IOUs to be a matrix of [grid points x anchors]
-        iou_mask_per_grid_point = np.reshape(iou_mask, [p.GRID_SIZE**2, p.ANCHOR_COUNT])
-        #Which anchor has the highest IOU at every grid point?
-        input_mask_indices = np.argmax(iou_mask_per_grid_point, 1)
+        # Reshaping the IOUs to be a matrix of [grid points x anchors]
+        iou_mask_per_grid_point = np.reshape(iou_mask,
+                                             [p.GRID_SIZE**2, p.ANCHOR_COUNT])
+        # Which anchor has the highest IOU at every grid point?
 
         input_mask = np.zeros([p.GRID_SIZE**2 * p.ANCHOR_COUNT])
 
-
         input_mask[box_assignment] = 1
-        
+
         for j in range(p.GRID_SIZE**2*p.ANCHOR_COUNT):
             classes[j,labels[i][box_mask[j]]] = 1
 

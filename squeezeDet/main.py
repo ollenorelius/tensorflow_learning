@@ -35,8 +35,11 @@ with tf.variable_scope('Input_batching'):
 dropout = tf.placeholder(tf.float32)
 
 # CONVOLUTIONAL LAYERS
-feature_map = net.create_forward_net_new(x_image, dropout)
-v_feature_map = net.create_forward_net_new(v_x_image, dropout, reuse=True)
+# feature_map = net.create_forward_net_new(x_image, dropout)
+# v_feature_map = net.create_forward_net_new(v_x_image, dropout, reuse=True)
+
+feature_map = net.create_tiny_net_res(x_image, dropout)
+v_feature_map = net.create_tiny_net_res(v_x_image, dropout, reuse=True)
 
 activations = net.get_activations(feature_map, 'activations')
 v_activations = net.get_activations(v_feature_map,
@@ -91,7 +94,7 @@ sess = tf.Session(config=config)
 print("Variables initialized!")
 
 
-net_name = 'big_fast_DO10_class_fix3_anch16_noempty'
+net_name = 'tiny_res'
 folder_name = './networks/%s' % net_name
 if not os.path.exists(folder_name):
     os.makedirs(folder_name)
@@ -128,7 +131,7 @@ with sess.as_default():
     for i in range(20000000):
         start_time = time.time()
         d, g, c, m, _t = sess.run([d_loss, g_loss, c_loss, merged, train_step],
-                                  feed_dict={dropout: 1.0})
+                                  feed_dict={dropout: 0.5})
         t = time.time()-start_time
         print('training set took %f seconds! (%s FPS)'
               % (t, params.BATCH_SIZE/t), end='\r')

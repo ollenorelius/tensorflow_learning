@@ -170,34 +170,33 @@ def create_forward_net_big_input(input_tensor, dropout, reuse=None):
         return sq9
 
 def create_forward_net_new(input_tensor, dropout, reuse=None):
-    with tf.variable_scope("Convolutional_layers",reuse=reuse):
-        x_image = tf.reshape(input_tensor, [-1, p.IMAGE_SIZE,
-                                                p.IMAGE_SIZE,
-                                                p.IMAGE_CHANNELS])
-        sq1 = conv_layer_stride2(x_image,7,96,'conv1')
-        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+    with tf.variable_scope("Convolutional_layers", reuse=reuse):
+        x_image = tf.reshape(input_tensor, [-1,
+                                            p.IMAGE_SIZE,
+                                            p.IMAGE_SIZE,
+                                            p.IMAGE_CHANNELS])
+        sq1 = conv_layer_stride2(x_image, 7, 96, 'conv1')
+        mp1 = max_pool_2x2(sq1, 'max_pool1')  # down to 128x128
 
-        sq2 = create_fire_module(mp1, 16,64,64,'fire2')
-        sq3 = create_fire_module(sq2, 16,64,64,'fire3')
-        sq4 = create_fire_module(sq3, 32,128,128,'fire4')
+        sq2 = create_fire_module(mp1, 16, 64, 64, 'fire2')
+        sq3 = create_fire_module(sq2, 16, 64, 64, 'fire3')
+        sq4 = create_fire_module(sq3, 32, 128, 128, 'fire4')
 
-        mp2 = max_pool_2x2(sq4,'max_pool2') # 64x64
+        mp2 = max_pool_2x2(sq4, 'max_pool2')  # 64x64
 
-        sq5 = create_fire_module(mp2, 32,128,128,'fire5')
-        sq6 = create_fire_module(sq5, 48,192,192,'fire6')
+        sq5 = create_fire_module(mp2, 32, 128, 128, 'fire5')
+        sq6 = create_fire_module(sq5, 48, 192, 192, 'fire6')
 
-        mp3 = max_pool_2x2(sq6,'max_pool3') #down to 32x32
+        mp3 = max_pool_2x2(sq6, 'max_pool3')  # down to 32x32
 
-        sq7 = create_fire_module(mp3, 48,192,192,'fire7')
-        sq8 = create_fire_module(sq7, 64,256,256,'fire8')
+        sq7 = create_fire_module(mp3, 48, 192, 192, 'fire7')
+        sq8 = create_fire_module(sq7, 64, 256, 256, 'fire8')
 
-        mp4 = max_pool_2x2(sq8,'max_pool4')#down to 16x16
-
+        mp4 = max_pool_2x2(sq8, 'max_pool4')  # down to 16x16
 
         mp5_drop = tf.nn.dropout(mp4, dropout)
 
-
-        sq9 = create_fire_module(mp5_drop, 64,256,256,'fire9')#(mp8, 64,256,256,512)
+        sq9 = create_fire_module(mp5_drop, 64, 256, 256, 'fire9')
         tf.summary.histogram('sq9', sq9)
         return sq9
 
@@ -227,7 +226,6 @@ def create_forward_net_res(input_tensor, dropout, reuse=None):
         mp5 = max_pool_2x2(mp4,'max_pool5') # 8x8
 
         mp5_drop = tf.nn.dropout(mp5, dropout)
-
 
         sq9 = create_fire_module(mp5_drop, 64,256,256,'fire9')
         tf.summary.histogram('sq9', sq9)
