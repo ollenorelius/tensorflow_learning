@@ -61,22 +61,25 @@ def create_tiny_net_res(input_tensor, dropout, reuse=None):
         tf.summary.histogram('image',x_image)
         sq1 = tf.concat([conv_layer_stride2(x_image,5,32,'conv1'),
             tf.image.resize_images(x_image, [p.IMAGE_SIZE//2, p.IMAGE_SIZE//2])], 3)
-        mp1 = max_pool_2x2(sq1,'max_pool1') #down to 128x128
+        r1 = conv_layer(input_tensor= sq1, size=1, depth=32, name='r1')
+        mp1 = max_pool_2x2(r1,'max_pool1') #down to 128x128
 
         sq2 = tf.concat([create_fire_module(mp1, 16,64,64,'fire2'),mp1],3)
-        mp2 = max_pool_2x2(sq2,'max_pool2') # 64x64
+        r2 = conv_layer(input_tensor= sq2, size=1, depth=128, name='r2')
+        mp2 = max_pool_2x2(r2,'max_pool2') # 64x64
 
         sq4 = tf.concat([create_fire_module(mp2, 32,64,64,'fire4'),mp2],3)
-        mp3 = max_pool_2x2(sq4,'max_pool3') #down to 32x32
-        mp4 = max_pool_2x2(mp3,'max_pool4')#down to 16x16
+        r3 = conv_layer(input_tensor= sq4, size=1, depth=128, name='r3')
+        mp3 = max_pool_2x2(r3,'max_pool3') #down to 32x32
 
-        sq6 = tf.concat([create_fire_module(mp4, 64,128,128,'fire6'),mp4],3)
-        mp5 = max_pool_2x2(sq6,'max_pool5') # 8x8
-        mp5_drop = tf.nn.dropout(mp5, dropout)
+        sq6 = tf.concat([create_fire_module(mp3, 64,128,128,'fire6'),mp3],3)
+        r4 = conv_layer(input_tensor= sq6, size=1, depth=256, name='r4')
+        mp5 = max_pool_2x2(r4,'max_pool5') # 8x8
+        #mp5_drop = tf.nn.dropout(mp5, dropout)
 
         tf.summary.histogram('last_max_pool', mp5)
 
-        return mp5_drop
+        return mp5
 
 
 def create_small_net(input_tensor, dropout, reuse=None):
