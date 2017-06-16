@@ -66,7 +66,10 @@ with tf.device('/cpu:0'):
             v_c_loss = u.class_loss(v_activations, v_classes, v_mask, v_n_obj)
             tf.summary.scalar('Class_loss_validation', v_c_loss)
 
-        loss = d_loss + g_loss + c_loss
+        t_vars = tf.trainable_variables()
+        lossL2 = tf.add_n([tf.nn.l2_loss(v) for v in t_vars]) * 0.001
+        loss = d_loss + g_loss + c_loss + lossL2
+
         tf.summary.scalar('Total_loss_training', loss)
         v_loss = v_d_loss + v_g_loss + v_c_loss
         tf.summary.scalar('Total_loss_validation', v_loss)
