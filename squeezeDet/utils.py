@@ -24,10 +24,10 @@ def create_anchors(grid_size):
                                 p.ANCHOR_SIZES[i][0]/2,
                                 p.ANCHOR_SIZES[i][1]/2))
 
-    assert (len(anchors), len(anchors[1])) is \
+    assert (len(anchors), len(anchors[1])) == \
            (p.ANCHOR_COUNT * p.GRID_SIZE**2, 4), \
-        "ERROR: create_anchors made a matrix of shape %i,%i" \
-        % (len(anchors), len(anchors[1]))
+        "ERROR: create_anchors made a matrix of shape %i,%i, should be %i,%i" \
+        % (len(anchors), len(anchors[1]), p.ANCHOR_COUNT * p.GRID_SIZE**2, 4)
 
     return anchors
 
@@ -294,7 +294,7 @@ def class_loss(act_tensor, classes, masks, N_obj):
                                             p.OUT_CLASSES])
 
     class_loss_ = tf.losses.softmax_cross_entropy(classes_flat, pred_class)
-    return tf.reduce_sum(class_loss_)/batch_size
+    return tf.reduce_sum(class_loss_)/batch_size * 100000
 
 
 def delta_to_box(delta, anchor):
