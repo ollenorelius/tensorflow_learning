@@ -32,7 +32,10 @@ class NeuralNet:
         self.graph = tf.get_default_graph()
         self.inp_batch = self.graph.get_tensor_by_name('Input_batching/batch:0')
         t_activations = self.graph.get_tensor_by_name('activation/activations:0')
-        #self.do = self.graph.get_tensor_by_name('Placeholder:0')
+        try:
+            self.do = self.graph.get_tensor_by_name('Placeholder:0')
+        except KeyError:
+            self.do = None
         # print([n.name for n in tf.get_default_graph().as_graph_def().node])
         print('Done!')
         sys.stdout.flush()
@@ -72,10 +75,15 @@ class NeuralNet:
 
         batch_size = 1
         start_time = time.time()
-        activations, deltas, gammas, classes, chosen_anchor = \
-            self.sess.run(self.all_out,
-                          feed_dict={self.inp_batch: images})#,
-                                     #self.do: 1.0})
+        if self.do is not None:
+            activations, deltas, gammas, classes, chosen_anchor = \
+                self.sess.run(self.all_out,
+                              feed_dict={self.inp_batch: images,
+                                         self.do: 1.0})
+        else:
+            activations, deltas, gammas, classes, chosen_anchor = \
+                self.sess.run(self.all_out,
+                              feed_dict={self.inp_batch: images})
         # print('Took %f seconds!' % (time.time()-start_time))
 
         gammas = np.reshape(gammas, [-1, gs**2*k])

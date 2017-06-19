@@ -78,7 +78,8 @@ for unf in filenames_unfiltered:
 for i in range(10):
     recall = []
     precision = []
-    cutoff = i/10
+    cutoff = i/50 + 0.1
+    print('cutoff: %s ' % cutoff, end="")
     '''batch_size = 10
     boxes = []
 
